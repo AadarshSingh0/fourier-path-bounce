@@ -1,0 +1,6 @@
+Run the following files to generate data and plot the results. Reproduces Appendix result.
+
+1) basis_path.py - Generates plots for various different basis fitting to various different paths. It stores all the plots in results folder. It also generates a result.csv file in the same directory as the base code.
+
+
+

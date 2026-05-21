@@ -1,4 +1,4 @@
-Run the following two files in this order to generate data and plot the results. Reproduces Section-4.2 results.
+Run the following files to generate data and plot the results. Reproduces Section-4.2 results.
 1) jax_fourier_optibounce_D3_compare_plot_uniform.py - Generates plots for the time taken, action value and action difference between fourier method and other method for various number of fields phi in the potential. The plots are stored in the plots folder. It also creates two files history and summary of the run. Use command -> python3 jax_fourier_optibounce_D3_compare_plot_uniform.py to run this file.
 
 This file has a few simple settings that control how the scan is done.

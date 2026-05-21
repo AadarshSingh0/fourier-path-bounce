@@ -6,6 +6,7 @@ The following folder contains files to reproduce Section-4 and 5 results.
    (A) 3D folder which has files to reproduce Section-4.2 results.
    (B) 4D folder which has files to reproduce Section-4.3 results.
    (C) Various_Basis folder which has files to reproduce Section-4.4 results.
+   (D) Path_Basis folder which has file to reproduce Appendix path results.
    
 3) Fourier+ALGO folder which contains two folders :-
    (A) CT + Fourier folder that has files to reproduce Section-5.1 and 5.2 results.

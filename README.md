@@ -11,45 +11,46 @@ The code is written as a collection of reproducible scripts, not as a packaged P
 ```text
 .
 ├── 2D Potential
-│   ├── basis_paths_action_convergence.py
-│   ├── cosmotransitions_optibounce2d_path.py
-│   └── Info.txt
+│   ├── basis_paths_action_convergence.py
+│   ├── cosmotransitions_optibounce2d_path.py
+│   └── Info.txt
 ├── Fourier+ALGO
-│   ├── CT+Fourier
-│   │   ├── fourier_ct_scan_data_generator.py
-│   │   ├── hybrid_fourier_ct_fixedpath_benchmark.py
-│   │   ├── Info.txt
-│   │   ├── plot_ct_summary.py
-│   │   └── Plots
-│   │       ├── ct_preconditioning_steps.png
-│   │       └── ct_preconditioning_time.png
-│   └── FindBounce+Fourier
-│       ├── findbounce_csvK_scan_READY.wl
-│       ├── FindBounce.nb
-│       ├── Info.txt
-│       └── make_fourier_csv_for_findbounce_csvdata.py
+│   ├── CT+Fourier
+│   │   ├── fourier_ct_scan_data_generator.py
+│   │   ├── hybrid_fourier_ct_fixedpath_benchmark.py
+│   │   ├── Info.txt
+│   │   └── plot_ct_summary.py
+│   └── FindBounce+Fourier
+│       ├── findbounce_csvK_scan_READY.wl
+│       ├── FindBounce.nb
+│       ├── Info.txt
+│       └── make_fourier_csv_for_findbounce_csvdata.py
 ├── Info.txt
 ├── Paper_Benchmark
-│   ├── 3D
-│   │   ├── Info.txt
-│   │   └── jax_fourier_optibounce_D3_compare_plot_uniform.py
-│   ├── 4D
-│   │   ├── FindBounce.nb
-│   │   ├── Info.txt
-│   │   ├── mega_random_coefficients.csv
-│   │   ├── mega_random_cosmotransitions_check.py
-│   │   ├── mega_random_findbounce_runner_FIXED.wl
-│   │   ├── mega_random_jax_fourier.py
-│   │   └── plot_mega_random_comparison.py
-│   └── Various_Basis
-│       ├── basis_comparison_jax_final.py
-│       ├── Info_Extended.md
-│       ├── Info.txt
-│       ├── input_data
-│       │   └── mega_random_coefficients.csv
-│       ├── plot_basis_comparison_from_csv.py
-│       └── plot_saved_basis_paths.py
+│   ├── 3D
+│   │   ├── Info.txt
+│   │   └── jax_fourier_optibounce_D3_compare_plot_uniform.py
+│   ├── 4D
+│   │   ├── FindBounce.nb
+│   │   ├── Info.txt
+│   │   ├── mega_random_coefficients.csv
+│   │   ├── mega_random_cosmotransitions_check.py
+│   │   ├── mega_random_findbounce_runner_FIXED.wl
+│   │   ├── mega_random_jax_fourier.py
+│   │   └── plot_mega_random_comparison.py
+│   ├── Path_Basis
+│   │   ├── basis_path.py
+│   │   └── Info.txt
+│   └── Various_Basis
+│       ├── basis_comparison_jax.py
+│       ├── Info_Extended.md
+│       ├── Info.txt
+│       ├── input_data
+│       │   └── mega_random_coefficients.csv
+│       ├── plot_basis_comparison_from_csv.py
+│       └── plot_saved_basis_paths.py
 └── README.md
+
 ```
 
 ---
