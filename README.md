@@ -69,6 +69,7 @@ Install the common Python packages:
 ```bash
 pip install numpy scipy pandas matplotlib
 pip install "jax[cpu]"
+pip install PyWavelets
 ```
 
 For scripts using CosmoTransitions:
