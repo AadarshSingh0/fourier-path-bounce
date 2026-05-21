@@ -4,7 +4,7 @@ plot_ct_preconditioning_summary.py
 
 Create clean paper-style plots for the CosmoTransitions preconditioning test.
 
-This script reads the median summary CSV produced by fourier_ct_scan_repeats.py
+This script reads the median summary CSV produced by fourier_ct_scan_data_generator.py
 and makes TWO SEPARATE figures:
 
     1. ct_preconditioning_steps.png
@@ -35,16 +35,16 @@ action_median
 Example
 -------
 python3 plot_ct_preconditioning_summary.py \
-    --summary scan_N2_to_N10_summary.csv \
+    --summary results/scan_N2_to_N10_summary.csv \
     --output-prefix ct_preconditioning \
     --min-nfields 3
 
 This produces:
-    ct_preconditioning_steps.png
-    ct_preconditioning_steps.pdf
-    ct_preconditioning_time.png
-    ct_preconditioning_time.pdf
-    ct_preconditioning_reductions.csv
+    Plots/ct_preconditioning_steps.png
+    Plots/ct_preconditioning_steps.pdf
+    Plots/ct_preconditioning_time.png
+    Plots/ct_preconditioning_time.pdf
+    Plots/ct_preconditioning_reductions.csv
 
 Author: Aadarsh Singh et al.
 """
@@ -368,6 +368,41 @@ def make_plots(
     )
 
 
+
+def resolve_summary_path(summary_arg: str | Path, results_dir: str | Path = "results") -> Path:
+    """
+    Resolve the input summary CSV.
+
+    Priority:
+      1. Use --summary exactly if it exists.
+      2. If --summary is only a filename, try results/<filename>.
+      3. If still not found and --summary was left as default, use the newest
+         results/*_summary.csv file.
+    """
+    summary_path = Path(summary_arg)
+    results_dir = Path(results_dir)
+
+    if summary_path.exists():
+        return summary_path
+
+    candidate = results_dir / summary_path
+    if candidate.exists():
+        return candidate
+
+    # Auto-detect when user did not provide a useful file.
+    matches = sorted(results_dir.glob("*_summary.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if matches:
+        print(f"Input summary not found as '{summary_arg}'.")
+        print(f"Using newest summary file instead: {matches[0]}")
+        return matches[0]
+
+    raise FileNotFoundError(
+        f"Could not find summary CSV '{summary_arg}'. Also checked '{candidate}'. "
+        f"No '*_summary.csv' files found in '{results_dir}'."
+    )
+
+
+
 # ============================================================
 # Main
 # ============================================================
@@ -381,20 +416,29 @@ def main() -> None:
     )
     parser.add_argument(
         "--summary",
-        default="scan_summary.csv",
-        help="Input CSV produced by fourier_ct_scan_repeats.py.",
+        default="scan_N2_to_N10_summary.csv",
+        help=(
+            "Input summary CSV. You may give either a full path such as "
+            "'results/scan_N2_to_N10_summary.csv' or only the filename; "
+            "if only the filename is given, the script also checks results/."
+        ),
+    )
+    parser.add_argument(
+        "--results-dir",
+        default="results",
+        help="Folder where the scan data generator saved CSV files. Default: results.",
     )
     parser.add_argument(
         "--output-prefix",
-        default="ct_preconditioning",
+        default="Plots/ct_preconditioning",
         help=(
             "Output prefix. The script writes '<prefix>_steps.png' and "
-            "'<prefix>_time.png'."
+            "'<prefix>_time.png'. Default: Plots/ct_preconditioning."
         ),
     )
     parser.add_argument(
         "--reductions-csv",
-        default="ct_preconditioning_reductions.csv",
+        default="Plots/ct_preconditioning_reductions.csv",
         help="Output CSV containing step/time reductions.",
     )
     parser.add_argument(
@@ -422,7 +466,20 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    df = load_summary(args.summary)
+    summary_path = resolve_summary_path(args.summary, results_dir=args.results_dir)
+
+    output_prefix_path = Path(args.output_prefix)
+    output_prefix_path.parent.mkdir(parents=True, exist_ok=True)
+
+    reductions_csv_path = Path(args.reductions_csv)
+    reductions_csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"Reading summary CSV: {summary_path}")
+    print(f"Saving plots with prefix: {output_prefix_path}")
+    print(f"Saving reductions CSV: {reductions_csv_path}")
+    print()
+
+    df = load_summary(summary_path)
     tidy = select_straight_and_fourier_m1(
         df,
         min_nfields=args.min_nfields,
@@ -430,8 +487,8 @@ def main() -> None:
     )
     reductions = compute_reductions(tidy)
 
-    reductions.to_csv(args.reductions_csv, index=False)
-    print(f"Saved {args.reductions_csv}")
+    reductions.to_csv(reductions_csv_path, index=False)
+    print(f"Saved {reductions_csv_path}")
     print()
     print("Reduction summary:")
     print(reductions.to_string(index=False, float_format=lambda x: f"{x:.4g}"))
@@ -440,7 +497,7 @@ def main() -> None:
     make_plots(
         tidy=tidy,
         reductions=reductions,
-        output_prefix=args.output_prefix,
+        output_prefix=output_prefix_path,
         save_pdf=not args.no_pdf,
         annotate=not args.no_annotate,
     )

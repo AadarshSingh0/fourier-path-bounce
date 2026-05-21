@@ -1,5 +1,5 @@
 Run the following two files in this order to generate data and plot the results. Reproduces Section-4.2 results.
-1) jax_fourier_optibounce_D3_compare_plot_uniform.py - Generates plots for the time taken, action value and action difference between fourier method and other method for various number of fields phi in the potential. The plots are stored in the plots folder. It also creates two files histoery and summary of the run. Use command python3 jax_fourier_optibounce_D3_compare_plot_uniform.py to run this file.
+1) jax_fourier_optibounce_D3_compare_plot_uniform.py - Generates plots for the time taken, action value and action difference between fourier method and other method for various number of fields phi in the potential. The plots are stored in the plots folder. It also creates two files history and summary of the run. Use command -> python3 jax_fourier_optibounce_D3_compare_plot_uniform.py to run this file.
 
 This file has a few simple settings that control how the scan is done.
 
@@ -14,4 +14,4 @@ This file has a few simple settings that control how the scan is done.
 (I) MAXITER decides how many optimization steps are allowed for each run. If the optimizer stops too early, increasing this can help.
 (J) N_GRID decides how many points are used to sample the path. A larger value gives a more accurate path integral, but also makes the code slower.
 
-The script treats every number of fields in the same way. It does not use any special rescue step for a particular case. This makes the benchmark fair and reproducible.
+

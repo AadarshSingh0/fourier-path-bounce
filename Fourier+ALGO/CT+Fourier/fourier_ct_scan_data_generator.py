@@ -18,15 +18,15 @@ What it does
    - Fourier/JAX path with nmodes in a scan list
 
 3. Repeats each case several times and saves:
-   - all raw runs to CSV
-   - median summary to CSV
-   - a simple mode-scan plot
+   - all raw runs to CSV inside results/
+   - median summary to CSV inside results/
+   - simple mode-scan plots inside results/
 
 Run examples
 ------------
-python3 fourier_ct_scan_repeats.py --nfields 5 --modes 1,2,3,5,8 --repeats 5
-python3 fourier_ct_scan_repeats.py --nfields 5,10 --modes 1,2,3,5,8 --repeats 5
-python3 fourier_ct_scan_repeats.py --nfields 10 --modes 1 --repeats 10 --inspect_once
+python3 fourier_ct_scan_data_generator.py --nfields 5 --modes 1,2,3,5,8 --repeats 5
+python3 fourier_ct_scan_data_generator.py --nfields 5,10 --modes 1,2,3,5,8 --repeats 5
+python3 fourier_ct_scan_data_generator.py --nfields 10 --modes 1 --repeats 10 --inspect_once
 
 Packages
 --------
@@ -47,6 +47,7 @@ import traceback
 from contextlib import redirect_stdout
 from dataclasses import dataclass, asdict
 from typing import Any
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -588,7 +589,7 @@ def print_summary(summary):
             )
 
 
-def plot_mode_scan(summary, outprefix):
+def plot_mode_scan(summary, outprefix, outdir):
     for nfields in sorted(summary["nfields"].unique()):
         sub = summary[summary["nfields"] == nfields]
         straight = sub[sub["method"] == "straight"]
@@ -608,7 +609,7 @@ def plot_mode_scan(summary, outprefix):
         plt.title(f"Total time vs modes, N={nfields}")
         plt.legend()
         plt.tight_layout()
-        fname = f"{outprefix}_time_N{nfields}.png"
+        fname = outdir / f"{outprefix}_time_N{nfields}.png"
         plt.savefig(fname, dpi=200)
         print(f"Saved {fname}")
 
@@ -622,7 +623,7 @@ def plot_mode_scan(summary, outprefix):
         plt.title(f"Deformation steps vs modes, N={nfields}")
         plt.legend()
         plt.tight_layout()
-        fname = f"{outprefix}_steps_N{nfields}.png"
+        fname = outdir / f"{outprefix}_steps_N{nfields}.png"
         plt.savefig(fname, dpi=200)
         print(f"Saved {fname}")
 
@@ -636,7 +637,7 @@ def plot_mode_scan(summary, outprefix):
         plt.title(f"Final fRatio vs modes, N={nfields}")
         plt.legend()
         plt.tight_layout()
-        fname = f"{outprefix}_fratio_N{nfields}.png"
+        fname = outdir / f"{outprefix}_fratio_N{nfields}.png"
         plt.savefig(fname, dpi=200)
         print(f"Saved {fname}")
 
@@ -655,9 +656,13 @@ def main():
     parser.add_argument("--m_spec", type=float, default=1.0)
     parser.add_argument("--spectator_amp", type=float, default=0.35)
     parser.add_argument("--outprefix", type=str, default="scan")
+    parser.add_argument("--outdir", type=str, default="results", help="folder where CSV files and plots are saved")
     parser.add_argument("--include_triangle", action="store_true", help="Include triangle baseline. Default skips it to save time.")
     parser.add_argument("--inspect_once", action="store_true", help="Print CT output structure once to debug action extraction.")
     args = parser.parse_args()
+
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     nfields_list = parse_int_list(args.nfields)
     modes_list = parse_int_list(args.modes)
@@ -672,6 +677,7 @@ def main():
     print(f"npts         = {args.npts}")
     print(f"m_spec       = {args.m_spec}")
     print(f"spectator_amp= {args.spectator_amp}")
+    print(f"output folder= {outdir}")
     print()
 
     rows = []
@@ -715,22 +721,22 @@ def main():
                     print("  error:", row["error_short"])
 
     raw = pd.DataFrame(rows)
-    raw_csv = f"{args.outprefix}_raw.csv"
+    raw_csv = outdir / f"{args.outprefix}_raw.csv"
     raw.to_csv(raw_csv, index=False)
     print(f"\nSaved {raw_csv}")
 
     summary = summarize(raw)
-    summary_csv = f"{args.outprefix}_summary.csv"
+    summary_csv = outdir / f"{args.outprefix}_summary.csv"
     summary.to_csv(summary_csv, index=False)
     print(f"Saved {summary_csv}")
 
     print_summary(summary)
-    plot_mode_scan(summary, args.outprefix)
+    plot_mode_scan(summary, args.outprefix, outdir)
 
     print("\nDone. Send me:")
     print(f"  1. {summary_csv}")
     print(f"  2. terminal MEDIAN SUMMARY")
-    print(f"  3. plots {args.outprefix}_time_N*.png, {args.outprefix}_steps_N*.png, {args.outprefix}_fratio_N*.png")
+    print(f"  3. plots {outdir / (args.outprefix + '_time_N*.png')}, {outdir / (args.outprefix + '_steps_N*.png')}, {outdir / (args.outprefix + '_fratio_N*.png')}")
     print("If action_median is still NaN, rerun one short case with --inspect_once and send me that output.")
 
 

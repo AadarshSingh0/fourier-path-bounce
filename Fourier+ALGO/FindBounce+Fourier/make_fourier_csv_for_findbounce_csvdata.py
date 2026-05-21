@@ -6,7 +6,7 @@ import numpy as np
 from scipy.optimize import minimize, minimize_scalar
 
 
-WL_FILE = "mega_random_findbounce_READY_v2.wl"
+WL_FILE = "findbounce_csvK_scan_READY.wl"
 NPTS = 31
 OUTDIR = Path("csv_data")
 
