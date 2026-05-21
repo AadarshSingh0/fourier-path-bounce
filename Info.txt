@@ -1,0 +1,15 @@
+The following folder contains files to reproduce Section-4 and 5 results.
+
+1) 2D Potential folder contains files to reproduce section-4.1 results namely for 2D potential case.
+
+2) Paper_Benchmark folder contains three folders :-
+   (A) 3D folder which has files to reproduce Section-4.2 results.
+   (B) 4D folder which has files to reproduce Section-4.3 results.
+   (C) Various_Basis folder which has files to reproduce Section-4.4 results.
+   
+3) Fourier+ALGO folder which contains two folders :-
+   (A) CT + Fourier folder that has files to reproduce Section-5.1 and 5.2 results.
+   (B) FindBounce + Fourier folder that has files to reproduce Section-5.3 results.
+   
+   
+We used several state of the art LLMs for structuring and cleaning the code and algorithms given in this repository. For more detail read "README.md" file.

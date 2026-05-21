@@ -1,0 +1,8 @@
+Run the following files in this folder to generate data and plot the results. Reproduces Section-4.1 results.
+
+1) basis_paths_action_convergence.py - Generates path plot in 2D potential obtained by fourier deformation. It considers various different basis of deformation and plots them. Also plot convergence of action for fourier scenario as the number of fourier modes are increases in 2D potential scenario. Run using - python3 basis_paths_action_convergence.py --basis all
+
+2) cosmotransitions_optibounce2d_path.py - Generates path plot in 2D potential obtained by path deformation. Run using python3 cosmotransitions_optibounce2d_path.py
+
+
+The Plots folder contains the plot for time and steps comparison with straight path and fourier path. 

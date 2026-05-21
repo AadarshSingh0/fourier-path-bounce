@@ -1,0 +1,11 @@
+Run the following files in this folder to generate data and plot the results. Reproduces Section-5.3 results.
+
+1) make_fourier_csv_for_findbounce_csvdata.py - Generates data for the paths injected in the FindBounce for various case. It creates a folder csv_data and stores the fourier coefficients for the path with various number of phi fields for the potential extended upto 50 fields. Use this command in terminal to run it -- python3 make_fourier_csv_for_findbounce_csvdata.py
+
+2) findbounce_csvK_scan_READY.wl - Mathematica code to import the fourier coefficient files from csv_data folder and use it to create various paths to be given as initial path to FindBounce algorithm.
+
+3) FindBounce.nb - This Mathematica code runs the findbounce_csvK_scan_READY.wl files to get the result from various different initial paths. It creates two csv files 
+findbounce_csvK_scan_results.csv and findbounce_csvK_scan_summary.csv which contain the result and summary of the run. This file also takes the created file "findbounce_csvK_scan_results.csv" as input and use it to plot various results.
+
+
+The Plots folder contains the plot for time and action comparison with straight path and fourier path for various number of fields in the potential. 

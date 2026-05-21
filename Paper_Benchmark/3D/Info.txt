@@ -1,0 +1,17 @@
+Run the following two files in this order to generate data and plot the results. Reproduces Section-4.2 results.
+1) jax_fourier_optibounce_D3_compare_plot_uniform.py - Generates plots for the time taken, action value and action difference between fourier method and other method for various number of fields phi in the potential. The plots are stored in the plots folder. It also creates two files histoery and summary of the run. Use command python3 jax_fourier_optibounce_D3_compare_plot_uniform.py to run this file.
+
+This file has a few simple settings that control how the scan is done.
+
+(A) TOLERANCE decides when the code should stop adding more Fourier modes. If the action changes by less than this amount, the code treats it as no real improvement.
+(B) PATIENCE decides how many extra modes the code should still try after the action stops improving. This avoids stopping too early just because one mode did not help.
+(C) BOUND_FACTOR decides how large the Fourier coefficients are allowed to become. A larger value allows the path to bend more, but if it is too large the path can become unphysical or unstable.
+(D) N_MAX decides the largest Fourier mode the code is allowed to try. Increasing this gives the path more freedom, but also makes the run slower.
+(E) N_START decides from which Fourier mode the scan begins.
+(F) N_STEP decides how many modes are added at each step. For example, if N_STEP = 1, the code checks 1, 2, 3, ... modes.
+(G) N_RANDOM_STARTS decides how many extra random starting guesses are used for each mode. More random starts can help avoid bad local minima, but they also increase runtime.
+(H) RANDOM_SCALE decides how large those random starting guesses are.
+(I) MAXITER decides how many optimization steps are allowed for each run. If the optimizer stops too early, increasing this can help.
+(J) N_GRID decides how many points are used to sample the path. A larger value gives a more accurate path integral, but also makes the code slower.
+
+The script treats every number of fields in the same way. It does not use any special rescue step for a particular case. This makes the benchmark fair and reproducible.

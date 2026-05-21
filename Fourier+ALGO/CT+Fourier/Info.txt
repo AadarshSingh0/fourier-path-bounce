@@ -1,0 +1,10 @@
+Run the following files in this folder to generate data and plot the results. Reproduces Section-5.1 and 5.2 results.
+
+1) fourier_ct_scan_data_generator.py - Generates data for the plot with various fourier modes and number of fields considered in the potential. Run this file by using command - python3 fourier_ct_scan_data_generator.py   --nfields 2,3,4,5,6,7,8,9,10   --modes 1,2,3,5,8   --repeats 5   --npts 120   --outprefix scan_N2_to_N10.
+
+2) plot_ct_summary.py - Creates plot for the data generated from above python code. Use the command  python3 plot_ct_summary.py   --summary scan_N2_to_N10_summary.csv   --output-prefix ct_preconditioning to generate plots.
+
+3) hybrid_fourier_ct_fixedpath_benchmark.py - Compares the fourier optimized path as the final path and Pure cosmoTransition found path as the optimized path and their corresponding action, bounce profile etc found.
+
+
+The Plots folder contains the plot for time and steps comparison with straight path and fourier path. 
