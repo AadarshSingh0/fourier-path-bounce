@@ -10,9 +10,9 @@ It compares endpoint-safe bases and saves coefficients/paths at every mode.
 Install:
   python3 -m pip install "jax[cpu]" scipy pandas numpy matplotlib
 Run:
-  python3 basis_comparison_jax_final.py --run-mode optibounce_D3
-  python3 basis_comparison_jax_final.py --run-mode optibounce_D4
-  python3 basis_comparison_jax_final.py --run-mode mega_random_D4
+  python3 basis_comparison_jax.py --run-mode optibounce_D3
+  python3 basis_comparison_jax.py --run-mode optibounce_D4
+  python3 basis_comparison_jax.py --run-mode mega_random_D4
 
 Outputs:
   results/<RUN_MODE>/basis_comparison_history.csv
@@ -522,16 +522,16 @@ def apply_cli_args():
     Main examples
     -------------
     Published OptiBounce table, D=3:
-        python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+        python3 basis_comparison_jax.py --run-mode optibounce_D3
 
     Same OptiBounce potential but D=4:
-        python3 basis_comparison_jax_final.py --run-mode optibounce_D4
+        python3 basis_comparison_jax.py --run-mode optibounce_D4
 
     Mega-random high-dimensional benchmark, D=4:
-        python3 basis_comparison_jax_final.py --run-mode mega_random_D4
+        python3 basis_comparison_jax.py --run-mode mega_random_D4
 
     Quick test:
-        python3 basis_comparison_jax_final.py --run-mode optibounce_D3 --nphi 5,10,20 --basis fourier,bspline_local --no-npz
+        python3 basis_comparison_jax.py --run-mode optibounce_D3 --nphi 5,10,20 --basis fourier,bspline_local --no-npz
     """
     global POTENTIAL_NAME, ACTION_DIM, NPHI_VALUES, BASIS_LIST, RUN_LABEL, OUTDIR
     global MEGA_RANDOM_CSV, N_BASIS_START, N_BASIS_MAX, N_BASIS_STEP

@@ -20,6 +20,19 @@ its standard path deformation after receiving the sampled path. FindBounce
 receives an open polygonal sequence consisting of the false vacuum, `K`
 interior points, and the true vacuum.
 
+### Reusable-package documentation
+
+- [Python API and package file map](fourier_path_bounce/README.md)
+- [Wolfram / FindBounce adapter](fourier_path_bounce/wolfram/README.md)
+- [Runnable examples](examples/README.md)
+- [Focused tests](tests/README.md)
+
+### Testing
+
+After installing the project, run the focused reusable-package tests with
+`python3 -m unittest discover -s tests -v`. Run all discoverable
+repository tests with `python3 -m unittest discover -v`.
+
 ### Python requirements
 
 Install the package from the repository root with `pip install .`, or use

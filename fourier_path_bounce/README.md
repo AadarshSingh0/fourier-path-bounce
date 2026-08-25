@@ -69,3 +69,31 @@ RunFindBounceWithFourier[potential, fields, falseVacuum, trueVacuum,
 
 Python exports geometry and metadata; users define their potential and
 gradient in Wolfram. This avoids unreliable source translation.
+
+## Package file map
+
+- `__init__.py` exports the stable public settings, result types,
+  optimization functions, adapters, and serialization helpers.
+- `__main__.py` enables `python3 -m fourier_path_bounce` and delegates
+  to the command-line interface.
+- `cli.py` implements validated optimize, sample, CosmoTransitions
+  preparation/run, and FindBounce export commands using
+  `module:function` callable imports.
+- `core.py` contains endpoint-preserving Fourier path construction, the
+  validated D=3 and D=4 proxy actions, adaptive mode selection, and structured
+  optimization results.
+- `serialization.py` saves and loads checked NPZ/JSON results with shape,
+  orientation, endpoint, and checksum validation.
+- `cosmotransitions.py` isolates CosmoTransitions 2.x path conversion and
+  `fullTunneling` calls while keeping preprocessing and solver diagnostics
+  separate.
+- `findbounce.py` samples `K` interior points independently of
+  `N_m` and writes or reloads full-precision open-path CSV/JSON exports.
+- `wolfram/FourierPathBounce.wl` validates exported geometry and provides
+  the generic FindBounce wrapper.
+- `wolfram/README.md` documents the Python-to-Wolfram handoff and its
+  external requirements.
+
+Runnable examples and their outputs are described in
+[`examples/README.md`](../examples/README.md). Focused and repository-wide
+test instructions are in [`tests/README.md`](../tests/README.md).
