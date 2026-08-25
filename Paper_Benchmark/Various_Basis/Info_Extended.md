@@ -5,7 +5,7 @@ This folder contains the final workflow for comparing different endpoint-safe ba
 The workflow has three Python files:
 
 ```text
-basis_comparison_jax_final.py      -> runs the JAX basis comparison
+basis_comparison_jax.py            -> runs the JAX basis comparison
 plot_basis_comparison_from_csv.py  -> makes summary plots from the CSV file
 plot_saved_basis_paths.py          -> makes path plots from saved .npz files
 ```
@@ -26,7 +26,7 @@ A clean folder should look like this:
 
 ```text
 Various_Basis/
-  basis_comparison_jax_final.py
+  basis_comparison_jax.py
   plot_basis_comparison_from_csv.py
   plot_saved_basis_paths.py
   Info.txt
@@ -54,7 +54,7 @@ The `results/` and `plots/` folders are created automatically by the scripts.
 The main file is:
 
 ```text
-basis_comparison_jax_final.py
+basis_comparison_jax.py
 ```
 
 It runs the JAX optimizer and compares different basis choices.
@@ -79,7 +79,7 @@ The `.npz` files store the optimized paths and are used later by `plot_saved_bas
 Use this for comparison with the published OptiBounce table.
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+python3 basis_comparison_jax.py --run-mode optibounce_D3
 ```
 
 ### OptiBounce benchmark, \(D=4\)
@@ -87,7 +87,7 @@ python3 basis_comparison_jax_final.py --run-mode optibounce_D3
 Same potential family, but using the \(D=4\) action.
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D4
+python3 basis_comparison_jax.py --run-mode optibounce_D4
 ```
 
 Do not directly compare these \(D=4\) numbers with the published \(D=3\) OptiBounce table.
@@ -95,7 +95,7 @@ Do not directly compare these \(D=4\) numbers with the published \(D=3\) OptiBou
 ### Mega-random benchmark, \(D=4\)
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode mega_random_D4
+python3 basis_comparison_jax.py --run-mode mega_random_D4
 ```
 
 For this run, the file below should be present:
@@ -111,7 +111,7 @@ input_data/mega_random_coefficients.csv
 For a fast check, run only a few cases and bases:
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3 \
+python3 basis_comparison_jax.py --run-mode optibounce_D3 \
   --nphi 5,10,20 \
   --basis fourier,bspline_local,hybrid_fourier_bspline \
   --no-npz
@@ -360,7 +360,7 @@ and copy the exact folder names.
 For the main basis comparison, run:
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+python3 basis_comparison_jax.py --run-mode optibounce_D3
 
 python3 plot_basis_comparison_from_csv.py --run-label optibounce_D3 --no-show
 
@@ -453,7 +453,7 @@ The `.npz` files are useful for path plots. For quick tests, skip them using:
 Run these from this folder:
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+python3 basis_comparison_jax.py --run-mode optibounce_D3
 
 python3 plot_basis_comparison_from_csv.py --run-label optibounce_D3 --no-show
 

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fourier-path-bounce"
+version = "0.1.0"
+description = "Reusable Fourier path preconditioning for multi-field bounce solvers"
+readme = "fourier_path_bounce/README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "jax",
+  "numpy",
+  "scipy",
+]
+
+[project.optional-dependencies]
+cosmotransitions = ["cosmoTransitions>=2,<3"]
+
+[project.scripts]
+fourier-path-bounce = "fourier_path_bounce.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fourier_path_bounce*", "examples*", "tests*"]
+
+[tool.setuptools.package-data]
+fourier_path_bounce = ["wolfram/*.wl", "README.md"]
+examples = ["*.wls"]
+tests = ["fixtures/*.json"]

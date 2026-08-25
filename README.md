@@ -2,7 +2,171 @@
 
 This repository contains the benchmark codes used for the Fourier-deformation study of multi-field bounce solutions. The scripts are organized by task: paper benchmarks, 2D visual checks, Fourier-assisted standard algorithms, and basis-comparison studies.
 
-The code is written as a collection of reproducible scripts, not as a packaged Python library. Most scripts should be run from the folder in which they are located, so that relative paths for inputs and outputs work correctly.
+The original paper reproductions remain available as scripts. A reusable
+`fourier_path_bounce` Python package now provides the same fixed-\(V_t\)
+Fourier preconditioner plus adapters for CosmoTransitions and FindBounce.
+
+## Reusable preconditioning API
+
+The public convention is always an array of shape `(n_points, n_fields)`, with
+the false vacuum exactly at row 0 (`t=0`) and the true vacuum exactly at the
+last row (`t=1`). The Fourier coefficients have shape
+`(n_fields, selected_modes)`. The current production profile is the published
+cubic smoothstep tied to raw `t`; the false-vacuum energy is shifted to zero.
+
+The Fourier stage creates an endpoint-preserving, action-informed initial
+field-space path. It is not the final bounce solver. CosmoTransitions performs
+its standard path deformation after receiving the sampled path. FindBounce
+receives an open polygonal sequence consisting of the false vacuum, `K`
+interior points, and the true vacuum.
+
+### Python requirements
+
+Install the package from the repository root with `pip install .`, or use
+`pip install -e .` for an editable development installation. Add the optional
+CosmoTransitions dependency with `pip install ".[cosmotransitions]"` or
+`pip install -e ".[cosmotransitions]"`. The reusable optimizer requires Python
+3.10+, NumPy, SciPy, and 64-bit JAX. CosmoTransitions and FindBounce are
+external solvers and are not bundled by this package.
+
+The CosmoTransitions adapter supports CosmoTransitions 2.x and was tested with
+2.0.2. The Wolfram handoff was tested with Wolfram Engine 13.2 and FindBounce
+1.1.0. The adapter isolates
+the CosmoTransitions 2.x `pathDeformation.fullTunneling` call in
+`fourier_path_bounce/cosmotransitions.py` and maps Euclidean dimension `d` to
+CosmoTransitions `alpha=d-1`.
+
+Potentials passed to `optimize_fourier_path` must accept one JAX array of shape
+`(n_fields,)`, return one scalar, and be JAX differentiable. Gradients passed
+to solver adapters accept one NumPy point and return shape `(n_fields,)`.
+
+```python
+from fourier_path_bounce import (
+    FourierPathSettings,
+    ModeSelectionSettings,
+    optimize_fourier_path,
+)
+from examples.reusable_potential import FALSE_VACUUM, TRUE_VACUUM, potential
+
+settings = FourierPathSettings(
+    dimension=4,
+    n_grid=260,
+    mode_selection=ModeSelectionSettings(modes=(1, 2, 3, 4, 5)),
+)
+result = optimize_fourier_path(
+    potential, FALSE_VACUUM, TRUE_VACUUM, settings=settings
+)
+print(result.path_points.shape, result.coefficients.shape, result.action_proxy)
+```
+
+`OptimizerSettings` controls L-BFGS-B tolerances and coefficient bounds.
+`ModeSelectionSettings` controls the deterministic mode schedule, adaptive
+stopping, warm starts, random starts, and seed. Results expose coefficients,
+selected `N_m`, sampled points, proxy action, per-mode history, optimizer and
+adaptive status, gradient norm, timings, bound saturation, and admissibility
+diagnostics. `result.sample_at(parameter_values)` supports explicit nonuniform
+raw-`t` placement. `save_fourier_result` and `load_fourier_result` provide a checked
+NPZ round trip. Invalid dimensions, non-finite endpoints, malformed potential
+outputs, endpoint mismatches, and solver failures raise explicit exceptions.
+
+### CosmoTransitions
+
+```python
+from fourier_path_bounce import CosmoTransitionsSettings, run_cosmotransitions
+from examples.reusable_potential import gradient
+
+ct = run_cosmotransitions(
+    potential,
+    gradient,
+    FALSE_VACUUM,
+    TRUE_VACUUM,
+    fourier_result=result,
+    n_path_points=120,
+    settings=CosmoTransitionsSettings(dimension=4, maxiter=40),
+)
+print(ct.action, ct.deformation_steps, ct.f_ratio, ct.status)
+```
+
+The adapter reverses the public false-to-true array only at the
+CosmoTransitions boundary because `fullTunneling` 2.x expects true-to-false
+points. It records Fourier preprocessing, solver, and total times separately.
+Use `initialization="straight"` for a direct comparison. A returned result that
+uses every configured outer iteration is labeled
+`returned_at_outer_iteration_limit`; inspect `f_ratio` rather than treating a
+finite action alone as proof of convergence.
+
+### FindBounce
+
+`N_m` is the number of optimized Fourier modes. `K` is independently the
+number of interior points injected into FindBounce. Exporting a different `K`
+does not rerun the Fourier optimizer.
+
+```python
+from fourier_path_bounce import prepare_findbounce_points, export_findbounce_points
+
+one = prepare_findbounce_points(result, K=1, sampling="parameter")
+many = prepare_findbounce_points(result, K=4, sampling="arclength")
+export_findbounce_points(many, "findbounce_input", basename="initializer")
+```
+
+Parameter sampling is uniform in Fourier `t`; arc-length sampling is uniform
+in normalized canonical field-space length. The export contains full-precision
+interior and full open-path CSV files plus JSON metadata with endpoints,
+orientation, dimensions, `N_m`, `K`, sampling method, and SHA-256 hashes.
+
+The generic Wolfram boundary does not translate Python potential source. The
+user defines the potential and fields in Wolfram and passes the geometry:
+
+```wolfram
+Get["fourier_path_bounce/wolfram/FourierPathBounce.wl"];
+result = FourierPathBounce`RunFindBounceWithFourier[
+  potential, fields, falseVacuum, trueVacuum, 4,
+  "findbounce_input/initializer_metadata.json",
+  "Gradient" -> gradient,
+  "FindBounceOptions" -> {"PathTolerance" -> 0.01}
+];
+```
+
+`ImportFourierPathPoints[source, falseVacuum, trueVacuum]` also accepts an
+explicit point matrix or full-path CSV. It rejects incorrect dimensions,
+non-finite data, reversed endpoints, duplicated endpoint rows, and attempts to
+override `"FieldPoints"`, `"Gradient"`, or `Dimension` through the option list.
+
+### Command line and examples
+
+The CLI loads Python callables only through `module:function` imports; it does
+not evaluate command-line code.
+
+```bash
+python3 -m fourier_path_bounce --help
+python3 -m fourier_path_bounce optimize \
+  --potential examples.reusable_potential:potential \
+  --false=-0.9456492739235919,-0.03701160775472421 \
+  --true=1.0466805318046022,0.033439047480567696 \
+  --dimension 4 --modes 1,2,3 --output-dir reusable_output
+python3 -m fourier_path_bounce sample \
+  --result reusable_output/fourier_result.npz --points 80 \
+  --sampling arclength --output reusable_output/path.csv
+python3 -m fourier_path_bounce ct-prepare \
+  --result reusable_output/fourier_result.npz --points 120 \
+  --output-dir reusable_output/ct
+python3 -m fourier_path_bounce findbounce-export \
+  --result reusable_output/fourier_result.npz --K 4 \
+  --sampling arclength --output-dir reusable_output/findbounce
+```
+
+Run the complete examples as modules from the repository root:
+
+```bash
+python3 -m examples.reusable_api_example
+python3 -m examples.reusable_cosmotransitions_example
+python3 -m examples.reusable_findbounce_example
+wolframscript -file examples/reusable_findbounce_example.wls
+```
+
+The benchmark-specific scripts below are retained unchanged as paper-result
+reproductions; the reusable package does not import benchmark potentials,
+coefficient tables, filenames, or local paths.
 
 ---
 
@@ -300,7 +464,7 @@ Paper_Benchmark/Various_Basis
 Main files:
 
 ```text
-basis_comparison_jax_final.py
+basis_comparison_jax.py
 plot_basis_comparison_from_csv.py
 plot_saved_basis_paths.py
 input_data/mega_random_coefficients.csv
@@ -344,7 +508,7 @@ Paper_Benchmark/Various_Basis
 ### OptiBounce \(D=3\)
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+python3 basis_comparison_jax.py --run-mode optibounce_D3
 ```
 
 This is the main basis-validation run against the \(D=3\) literature benchmark.
@@ -352,7 +516,7 @@ This is the main basis-validation run against the \(D=3\) literature benchmark.
 ### OptiBounce \(D=4\)
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D4
+python3 basis_comparison_jax.py --run-mode optibounce_D4
 ```
 
 This uses the same OptiBounce potential family but evaluates the \(D=4\) action. Do not directly compare the \(D=4\) action values to the published \(D=3\) table.
@@ -360,7 +524,7 @@ This uses the same OptiBounce potential family but evaluates the \(D=4\) action.
 ### Mega-random \(D=4\)
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode mega_random_D4
+python3 basis_comparison_jax.py --run-mode mega_random_D4
 ```
 
 This requires:
@@ -372,7 +536,7 @@ input_data/mega_random_coefficients.csv
 ### Quick test
 
 ```bash
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3 \
+python3 basis_comparison_jax.py --run-mode optibounce_D3 \
   --nphi 5,10,20 \
   --basis fourier,bspline_local,hybrid_fourier_bspline \
   --no-npz
@@ -664,15 +828,15 @@ The Mathematica code compares straight-path FindBounce with several Fourier-CSV-
 ```text
 Paper_Benchmark/3D/jax_fourier_optibounce_D3_compare_plot_uniform.py
 Paper_Benchmark/4D/mega_random_jax_fourier.py
-Paper_Benchmark/Various_Basis/basis_comparison_jax_final.py --run-mode optibounce_D3
-Paper_Benchmark/Various_Basis/basis_comparison_jax_final.py --run-mode optibounce_D4
+Paper_Benchmark/Various_Basis/basis_comparison_jax.py --run-mode optibounce_D3
+Paper_Benchmark/Various_Basis/basis_comparison_jax.py --run-mode optibounce_D4
 ```
 
 ### Needs `mega_random_coefficients.csv`
 
 ```text
 Paper_Benchmark/4D/mega_random_cosmotransitions_check.py
-Paper_Benchmark/Various_Basis/basis_comparison_jax_final.py --run-mode mega_random_D4
+Paper_Benchmark/Various_Basis/basis_comparison_jax.py --run-mode mega_random_D4
 ```
 
 Required files:
@@ -741,7 +905,7 @@ The `.npz` files store optimized paths. They can take disk space. For quick basi
 --no-npz
 ```
 
-with `basis_comparison_jax_final.py`.
+with `basis_comparison_jax.py`.
 
 ---
 
@@ -778,7 +942,7 @@ python3 plot_mega_random_comparison.py
 ```bash
 cd "Paper_Benchmark/Various_Basis"
 
-python3 basis_comparison_jax_final.py --run-mode optibounce_D3
+python3 basis_comparison_jax.py --run-mode optibounce_D3
 
 python3 plot_basis_comparison_from_csv.py --run-label optibounce_D3 --no-show
 
