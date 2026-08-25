@@ -24,6 +24,11 @@ bounce solvers. Run the examples as modules from the repository root.
 - `reusable_findbounce_example.wls` defines the same potential in Wolfram,
   imports the `K=4` Python export, runs FindBounce, and prints a compact
   solver summary.
+- `xsm/` contains the finite-temperature Z2-symmetric real-singlet Standard
+  Model benchmark used in BubbleProfiler and FindBounce. Its documented driver
+  validates the model and runs the reusable Fourier, CosmoTransitions, and
+  genuine Wolfram/FindBounce workflow; see
+  [`xsm/README.md`](xsm/README.md).
 
 ### Integration and validation drivers
 
@@ -64,6 +69,7 @@ python3 -m examples.reusable_api_example
 python3 -m examples.reusable_cosmotransitions_example
 python3 -m examples.reusable_findbounce_example
 wolframscript -file examples/reusable_findbounce_example.wls
+python3 -m examples.xsm.benchmark validate --output-dir xsm_example_output
 ```
 
 The API example creates

@@ -22,6 +22,9 @@ for the reusable Fourier preconditioning package.
 - `test_additional_validation.py` covers arbitrary field dimension,
   malformed gradients, incompatible solver dimensions, and clear rejection of
   non-JAX potential functions.
+- `test_xsm_model.py` validates the finite-temperature real-singlet model,
+  including its analytic minima and derivatives, NumPy/JAX/Wolfram agreement,
+  and the portable example command interface.
 - `fixtures/d4_n4_legacy_regression.json` stores coefficients, potential
   data, endpoints, and the full-precision expected D=4 action used by the
   legacy regression test.

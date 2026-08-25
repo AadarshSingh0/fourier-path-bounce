@@ -25,6 +25,7 @@ interior points, and the true vacuum.
 - [Python API and package file map](fourier_path_bounce/README.md)
 - [Wolfram / FindBounce adapter](fourier_path_bounce/wolfram/README.md)
 - [Runnable examples](examples/README.md)
+- [Finite-temperature real-singlet example](examples/xsm/README.md)
 - [Focused tests](tests/README.md)
 
 ### Testing
@@ -176,6 +177,12 @@ python3 -m examples.reusable_cosmotransitions_example
 python3 -m examples.reusable_findbounce_example
 wolframscript -file examples/reusable_findbounce_example.wls
 ```
+
+The reusable finite-temperature xSM model and its documented end-to-end
+example are in [`examples/xsm/`](examples/xsm/README.md). The example uses the
+same leading high-temperature benchmark as BubbleProfiler and FindBounce and
+demonstrates tested handoffs to CosmoTransitions 2.x and FindBounce 1.1.0.
+Those external packages remain the final bounce solvers and are not bundled.
 
 The benchmark-specific scripts below are retained unchanged as paper-result
 reproductions; the reusable package does not import benchmark potentials,

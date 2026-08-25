@@ -24,6 +24,7 @@ fourier-path-bounce = "fourier_path_bounce.cli:main"
 include = ["fourier_path_bounce*", "examples*", "tests*"]
 
 [tool.setuptools.package-data]
-fourier_path_bounce = ["README.md", "wolfram/*.wl", "wolfram/README.md"]
+fourier_path_bounce = ["README.md", "models/README.md", "wolfram/*.wl", "wolfram/README.md"]
 examples = ["README.md", "*.wls"]
+"examples.xsm" = ["README.md", "*.wls"]
 tests = ["README.md", "fixtures/*.json", "fixtures/README.md"]

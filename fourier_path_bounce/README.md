@@ -89,6 +89,9 @@ gradient in Wolfram. This avoids unreliable source translation.
   separate.
 - `findbounce.py` samples `K` interior points independently of
   `N_m` and writes or reloads full-precision open-path CSV/JSON exports.
+- `models/xsm.py` provides the validated leading-high-temperature real-singlet
+  benchmark potential, gradient, Hessian, and analytic vacua for NumPy, JAX,
+  CosmoTransitions, and the Wolfram handoff; see `models/README.md`.
 - `wolfram/FourierPathBounce.wl` validates exported geometry and provides
   the generic FindBounce wrapper.
 - `wolfram/README.md` documents the Python-to-Wolfram handoff and its
@@ -97,3 +100,16 @@ gradient in Wolfram. This avoids unreliable source translation.
 Runnable examples and their outputs are described in
 [`examples/README.md`](../examples/README.md). Focused and repository-wide
 test instructions are in [`tests/README.md`](../tests/README.md).
+
+## Finite-temperature xSM model
+
+`fourier_path_bounce.models.XSMThermalModel` implements the Z2-symmetric
+real-singlet Standard Model benchmark used in the BubbleProfiler
+(arXiv:1901.03714) and FindBounce (arXiv:2002.00881) studies. It supplies the
+thermal potential, analytic derivatives, vacua, and validation utilities
+without importing either optional bounce solver.
+
+This is the published leading high-temperature approximation, not a full
+one-loop or daisy-resummed precision potential. See the
+[xSM example](../examples/xsm/README.md) for the Fourier, CosmoTransitions, and
+Wolfram/FindBounce workflow.
