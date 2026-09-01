@@ -9,3 +9,6 @@ dist/
 .eggs/
 .venv/
 venv/
+example_output/
+reusable_output/
+xsm_example_output/

@@ -6,10 +6,30 @@ false-vacuum-to-true-vacuum arrays with shape `(n_points, n_fields)`.
 
 Install from the repository root with `pip install .`, or use `pip install -e .`
 for an editable checkout. The optional `.[cosmotransitions]` extra installs the
-supported CosmoTransitions 2.x Python dependency. CosmoTransitions and
+verified `cosmoTransitions>=2.0.7,<3` Python dependency. CosmoTransitions and
 FindBounce are external final bounce solvers; they are not bundled with this
-package. The adapter was tested with CosmoTransitions 2.0.2, while the Wolfram
-boundary was tested with Wolfram Engine 13.2 and FindBounce 1.1.0.
+package. The current clean environment used CosmoTransitions 2.0.7; earlier
+2.0.x releases are not claimed compatible with current Python/NumPy
+environments. The Wolfram boundary was tested with Wolfram Engine 13.2 and
+FindBounce 1.1.0.
+
+The base installation requires Python 3.10 or newer and installs JAX, NumPy,
+and SciPy. The current release was clean-install tested on Linux x86_64 with
+Python 3.12.3; other Python and operating-system combinations are not yet
+covered by public continuous integration.
+
+## Effective-potential scope
+
+Loop and thermal corrections enter through the user-supplied effective
+potential and require no change to the Fourier path parametrization. Its field
+dependence must use differentiable JAX-compatible operations. Tabulated
+potentials can be used through a differentiable interpolation or surrogate;
+arbitrary non-differentiable black-box routines are not accepted directly by
+the current optimizer. Constructing, renormalizing, and thermally resumming
+the physical effective potential remain the model builder's responsibility.
+CosmoTransitions or FindBounce then performs the final bounce calculation
+using that physical potential; this package supplies a preconditioner or
+initializer and does not replace either solver.
 
 ## Public functions
 
@@ -53,7 +73,7 @@ discrete actions. The `d=3` objective retains the published `1e-300` guards
 and `1e50` invalid-interval penalty. The `d=4` objective retains the published
 unclipped arithmetic. No adapter changes these objectives.
 
-CosmoTransitions 2.x expects its path in true-to-false order. Only
+CosmoTransitions 2.0.7 expects its path in true-to-false order. Only
 `prepare_cosmotransitions_path` and `run_cosmotransitions` perform that
 boundary reversal. `CosmoTransitionsSettings.dimension` is mapped to the
 single-field solver's `alpha=dimension-1` and conflicting overrides are
@@ -84,7 +104,7 @@ gradient in Wolfram. This avoids unreliable source translation.
   optimization results.
 - `serialization.py` saves and loads checked NPZ/JSON results with shape,
   orientation, endpoint, and checksum validation.
-- `cosmotransitions.py` isolates CosmoTransitions 2.x path conversion and
+- `cosmotransitions.py` isolates CosmoTransitions 2.0.7 path conversion and
   `fullTunneling` calls while keeping preprocessing and solver diagnostics
   separate.
 - `findbounce.py` samples `K` interior points independently of

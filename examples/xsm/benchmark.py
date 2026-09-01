@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 from dataclasses import asdict
+from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Any
 
@@ -160,7 +161,7 @@ def run_ct(temperature: float, output_directory: Path) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "temperature_GeV": temperature,
         "solver": "CosmoTransitions",
-        "version_family": "2.x",
+        "version": distribution_version("cosmoTransitions"),
         "runs": {},
     }
     for initialization in ("straight", "fourier"):

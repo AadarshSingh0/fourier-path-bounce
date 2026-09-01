@@ -107,7 +107,7 @@ def prepare_cosmotransitions_path(
     n_points: int = 120,
     sampling: str = "parameter",
 ) -> np.ndarray:
-    """Return the true-to-false point array required by CosmoTransitions 2.x."""
+    """Return the true-to-false point array required by CosmoTransitions 2.0.7."""
     false, true = _endpoints(false_vacuum, true_vacuum)
     if not isinstance(n_points, int) or n_points < 3:
         raise InputValidationError("CosmoTransitions n_points must be an integer >= 3")
@@ -214,7 +214,7 @@ def run_cosmotransitions(
         from cosmoTransitions import pathDeformation
     except Exception as exc:
         raise FourierPathError(
-            "CosmoTransitions is unavailable; install a compatible 2.x release to run this adapter"
+            "CosmoTransitions is unavailable; install version >=2.0.7,<3 to run this adapter"
         ) from exc
 
     def solver_potential(points: Any) -> np.ndarray:
