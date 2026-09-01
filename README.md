@@ -43,16 +43,38 @@ CosmoTransitions dependency with `pip install ".[cosmotransitions]"` or
 3.10+, NumPy, SciPy, and 64-bit JAX. CosmoTransitions and FindBounce are
 external solvers and are not bundled by this package.
 
-The CosmoTransitions adapter supports CosmoTransitions 2.x and was tested with
-2.0.2. The Wolfram handoff was tested with Wolfram Engine 13.2 and FindBounce
-1.1.0. The adapter isolates
-the CosmoTransitions 2.x `pathDeformation.fullTunneling` call in
+The CosmoTransitions adapter is currently verified with CosmoTransitions
+2.0.7. The package metadata requires `cosmoTransitions>=2.0.7,<3`; earlier
+2.0.x releases are not claimed compatible with current Python/NumPy
+environments. The Wolfram handoff was tested with Wolfram Engine 13.2 and
+FindBounce 1.1.0. The adapter isolates the CosmoTransitions 2.0.7
+`pathDeformation.fullTunneling` call in
 `fourier_path_bounce/cosmotransitions.py` and maps Euclidean dimension `d` to
 CosmoTransitions `alpha=d-1`.
+
+Package metadata requires Python 3.10 or newer. The current release was
+clean-install tested on Linux x86_64 with Python 3.12.3; other Python and
+operating-system combinations are not yet covered by public continuous
+integration.
 
 Potentials passed to `optimize_fourier_path` must accept one JAX array of shape
 `(n_fields,)`, return one scalar, and be JAX differentiable. Gradients passed
 to solver adapters accept one NumPy point and return shape `(n_fields,)`.
+
+### Effective-potential scope
+
+Loop and thermal corrections enter through the effective potential supplied
+by the user; they do not require a change to the Fourier path parametrization.
+The potential's field dependence must use differentiable JAX-compatible
+operations. Tabulated potentials can be used through a differentiable
+interpolation or surrogate, while arbitrary non-differentiable black-box
+potential routines are not accepted directly by the current Fourier
+optimizer. Constructing, renormalizing, and thermally resumming the physical
+effective potential remain the model builder's responsibility.
+
+CosmoTransitions or FindBounce performs the final bounce calculation using
+the supplied physical potential. This package is a preconditioner and
+initializer, not a replacement for either solver.
 
 ```python
 from fourier_path_bounce import (
@@ -102,7 +124,7 @@ print(ct.action, ct.deformation_steps, ct.f_ratio, ct.status)
 ```
 
 The adapter reverses the public false-to-true array only at the
-CosmoTransitions boundary because `fullTunneling` 2.x expects true-to-false
+CosmoTransitions boundary because `fullTunneling` 2.0.7 expects true-to-false
 points. It records Fourier preprocessing, solver, and total times separately.
 Use `initialization="straight"` for a direct comparison. A returned result that
 uses every configured outer iteration is labeled
@@ -181,7 +203,7 @@ wolframscript -file examples/reusable_findbounce_example.wls
 The reusable finite-temperature xSM model and its documented end-to-end
 example are in [`examples/xsm/`](examples/xsm/README.md). The example uses the
 same leading high-temperature benchmark as BubbleProfiler and FindBounce and
-demonstrates tested handoffs to CosmoTransitions 2.x and FindBounce 1.1.0.
+demonstrates tested handoffs to CosmoTransitions 2.0.7 and FindBounce 1.1.0.
 Those external packages remain the final bounce solvers and are not bundled.
 
 The benchmark-specific scripts below are retained unchanged as paper-result
@@ -194,6 +216,27 @@ coefficient tables, filenames, or local paths.
 
 ```text
 .
+├── pyproject.toml
+├── LICENSE
+├── fourier_path_bounce
+│   ├── core.py
+│   ├── cosmotransitions.py
+│   ├── findbounce.py
+│   ├── serialization.py
+│   ├── models
+│   │   └── xsm.py
+│   └── wolfram
+│       └── FourierPathBounce.wl
+├── examples
+│   ├── reusable_api_example.py
+│   ├── reusable_cosmotransitions_example.py
+│   ├── reusable_findbounce_example.py
+│   └── xsm
+│       ├── benchmark.py
+│       └── README.md
+├── tests
+│   ├── fixtures
+│   └── test_*.py
 ├── 2D Potential
 │   ├── basis_paths_action_convergence.py
 │   ├── cosmotransitions_optibounce2d_path.py
@@ -249,7 +292,9 @@ Recommended:
 Python 3.10 or newer
 ```
 
-Install the common Python packages:
+Installing the reusable package with `pip install .` installs its mandatory
+JAX, NumPy, and SciPy dependencies. The retained paper-benchmark scripts may
+additionally require:
 
 ```bash
 pip install numpy scipy pandas matplotlib
@@ -260,10 +305,12 @@ pip install PyWavelets
 For scripts using CosmoTransitions:
 
 ```bash
-pip install cosmoTransitions
+pip install "cosmoTransitions>=2.0.7,<3"
 ```
 
-If this does not work on your system, install CosmoTransitions from its source repository.
+Version 2.0.7 is the version verified in the current clean Linux/Python 3.12.3
+environment. Earlier 2.0.x releases are not claimed compatible with current
+Python/NumPy environments.
 
 ### 2.2 Mathematica / Wolfram Language
 
@@ -411,7 +458,11 @@ and produces:
 mega_random_cosmotransitions_results.csv
 ```
 
-CosmoTransitions may fail for \(N_\phi>10\) because of its internal dimensional restriction. This is expected.
+In the present mega-random benchmark and tested environment, CosmoTransitions
+failed for the cases with \(N_\phi>10\). We therefore report CosmoTransitions
+comparisons only through \(N_\phi=10\). This is an observed limitation of these
+runs and should not be interpreted as a universal field-count bound for all
+CosmoTransitions applications.
 
 ### 5.3 Run FindBounce
 
@@ -903,9 +954,13 @@ The basis plotting script does this automatically for OptiBounce runs.
 The published OptiBounce benchmark uses \(D=3\). 
 The \(D=4\) action is a different action and should not be directly compared with the \(D=3\) table.
 
-### CosmoTransitions dimensional limit
+### Benchmark-specific CosmoTransitions failures above \(N_\phi=10\)
 
-CosmoTransitions may fail for \(N_\phi>10\) because of an internal dimensional restriction. This is expected.
+In the present mega-random benchmark and tested environment, CosmoTransitions
+failed for the cases with \(N_\phi>10\). We therefore report CosmoTransitions
+comparisons only through \(N_\phi=10\). This is an observed limitation of these
+runs and should not be interpreted as a universal field-count bound for all
+CosmoTransitions applications.
 
 ### Mathematica working directory
 
@@ -1021,3 +1076,7 @@ If using these results in a paper, please cite the relevant original papers/tool
 ## 14. Final note
 
 The repository is meant to reproduce the numerical tables and figures for the Fourier-deformation bounce project. The codes are explicit and folder-based so that each benchmark can be rerun independently.
+
+## 15. License
+
+This software is released under the [MIT License](LICENSE).

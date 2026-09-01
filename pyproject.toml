@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,11 @@ name = "fourier-path-bounce"
 version = "0.1.0"
 description = "Reusable Fourier path preconditioning for multi-field bounce solvers"
 readme = "fourier_path_bounce/README.md"
+authors = [
+  {name = "Aadarsh Singh"},
+]
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
   "jax",
@@ -15,7 +20,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cosmotransitions = ["cosmoTransitions>=2,<3"]
+cosmotransitions = ["cosmoTransitions>=2.0.7,<3"]
+
+[project.urls]
+Repository = "https://github.com/AadarshSingh0/fourier-path-bounce"
+Issues = "https://github.com/AadarshSingh0/fourier-path-bounce/issues"
 
 [project.scripts]
 fourier-path-bounce = "fourier_path_bounce.cli:main"
