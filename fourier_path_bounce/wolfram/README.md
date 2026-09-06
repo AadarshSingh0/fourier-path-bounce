@@ -33,7 +33,7 @@ carries:
 
 | Key | Meaning |
 |---|---|
-| `Status` | `ok`, `returned_at_path_iteration_limit`, `failed`, or `timeout` |
+| `Status` | `ok`, `returned_at_path_iteration_limit`, `termination_unverified`, `failed`, or `timeout` |
 | `PathIterations` | iterations FindBounce actually performed (`bounce["PathIterations"]`) |
 | `ConfiguredMaxPathIterations` | the effective cap, including FindBounce's own default (currently 3) when `"MaxPathIterations"` is not supplied |
 | `PathIterationLimitReached` | `True` when the count reached the cap |
@@ -52,6 +52,9 @@ Interpretation:
   varying the tolerances, the cap, and the number of field points.
 - For a single field FindBounce performs no path deformation at all, so the
   limit does not apply.
+- If the iteration count or the effective limit cannot be read back, the run is
+  reported as `termination_unverified` rather than `ok`: a finite action whose
+  termination cannot be classified is never presented as success.
 
 The action, the imported initial path, and the `BounceFunction` are always
 returned, so a limit-reached or failed run remains fully diagnosable. Results

@@ -71,6 +71,35 @@ FindBouncePointSet
 number of FindBounce interior points. FindBounce exports are open polygonal
 paths, not closed polygons.
 
+### Optimizer starts and the D=3 zero start
+
+The bounded L-BFGS-B optimizer can terminate on its own `ftol` test at its start
+point, reporting `CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH` after a
+single iteration without having moved. On the `d=3` objective this happens
+routinely when the only start is the straight line (`zero_start` with
+`random_starts=0`, the library default): the returned coefficients are all zero,
+so the "preconditioned" path *is* the straight line, even though the straight
+path is not stationary there.
+
+This is a real limitation of the bounded optimizer on this objective, not a
+property of the potential, and it is now reported rather than hidden. When no
+start at any mode count leaves its initial point while the projected gradient
+stays above `gtol`, the result carries
+
+```text
+optimizer_made_no_progress = True
+optimizer_success          = False
+adaptive_converged         = False
+stop_reason                = "optimizer made no progress from any start ..."
+```
+
+**What to configure.** For `d=3`, set `ModeSelectionSettings.random_starts >= 1`
+(the shipped examples use `random_starts=3`), or supply explicit
+`initial_coefficients`. Outcomes remain seed-dependent, so treat `seed` as a
+setting to vary, and always check `optimizer_made_no_progress`,
+`gradient_norm`, and `adaptive_converged` before using a path. `d=4` is not
+usually affected at the default settings.
+
 `optimize_fourier_path` supports the repository's validated `d=3` and `d=4`
 discrete actions. The `d=3` objective retains the published `1e-300` guards
 and `1e50` invalid-interval penalty. The `d=4` objective retains the published

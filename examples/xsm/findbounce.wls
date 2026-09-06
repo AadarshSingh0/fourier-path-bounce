@@ -110,12 +110,14 @@ result = <|
     "solver_time_s" -> fourierTiming[[1]],
     "field_points" -> 31,
     "interior_points_K" -> 29
-  |>, KeyDrop[fourierResult, Complement[Keys[fourierResult],
+  |>, KeyTake[fourierResult,
       {"ConfiguredMaxPathIterations", "PathIterationLimitReached", "PathTolerance",
-       "ActionTolerance", "PathConvergence", "ConvergenceEvidence"}]]],
+       "ActionTolerance", "PathConvergence", "ConvergenceEvidence"}]],
   "relative_action_difference" ->
     N[(fourier["Action"] - straight["Action"])/straight["Action"]]
 |>;
-(* Missing[...] is not JSON-encodable; keep a readable record either way. *)
-Export[resultFile, Replace[result, m_Missing :> ToString[m, InputForm], {3}], "RawJSON"];
-Print[ExportString[result, "RawJSON"]];
+(* Missing[...] is not JSON-encodable; keep a readable record either way, and
+   print exactly what was written. *)
+exportableResult = Replace[result, m_Missing :> ToString[m, InputForm], {3}];
+Export[resultFile, exportableResult, "RawJSON"];
+Print[ExportString[exportableResult, "RawJSON"]];

@@ -57,6 +57,7 @@ def save_fourier_result(result: FourierPathResult, path: str | Path) -> Path:
         "coefficient_bound_saturation_count": result.coefficient_bound_saturation_count,
         "invalid_interval_count": result.invalid_interval_count,
         "min_v_minus_vt": result.min_v_minus_vt,
+        "optimizer_made_no_progress": result.optimizer_made_no_progress,
         "history": [asdict(item) for item in result.history],
         "metadata": result.metadata,
         "orientation": result.orientation,
@@ -128,6 +129,8 @@ def load_fourier_result(path: str | Path) -> FourierPathResult:
         coefficient_bound_saturation_count=int(payload["coefficient_bound_saturation_count"]),
         invalid_interval_count=int(payload["invalid_interval_count"]),
         min_v_minus_vt=float(payload["min_v_minus_vt"]),
+        # Absent in v0.1.0 archives; those runs predate the diagnostic.
+        optimizer_made_no_progress=bool(payload.get("optimizer_made_no_progress", False)),
         metadata=dict(payload.get("metadata", {})),
     )
     if result.path_points.shape != (result.parameter.size, result.n_fields):

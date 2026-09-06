@@ -6,7 +6,9 @@ Two defects are covered:
   finite action, so a run truncated at ``MaxPathIterations`` was indistinguishable
   from one that met the solver's own tolerance;
 * ``ModeSelectionSettings.validate`` rejected a configuration whose only start
-  point was the caller's ``initial_coefficients``.
+  point was the caller's ``initial_coefficients``;
+* a D=3 optimization in which L-BFGS-B never left its start point was reported
+  as ``optimizer_success=True`` and ``adaptive_converged=True``.
 """
 
 import json
@@ -18,6 +20,11 @@ from pathlib import Path
 
 import numpy as np
 
+from examples.curved_valley_potential import (
+    FALSE_VACUUM as VALLEY_FALSE,
+    TRUE_VACUUM as VALLEY_TRUE,
+    potential as valley_potential,
+)
 from examples.reusable_potential import FALSE_VACUUM, TRUE_VACUUM, potential
 from fourier_path_bounce import (
     FourierPathSettings,
@@ -88,9 +95,99 @@ class InitialCoefficientStartTests(unittest.TestCase):
         with self.assertRaises(InputValidationError):
             optimize_fourier_path(potential, FALSE_VACUUM, TRUE_VACUUM, settings=settings)
 
+    def test_zero_column_coefficients_are_rejected(self):
+        """(n_fields, 0) is not a usable coefficient array; reconstruct_path
+        already rejects it, so optimize_fourier_path must agree."""
+        settings = FourierPathSettings(
+            mode_selection=ModeSelectionSettings(modes=(1,), **self.ONLY_USER)
+        )
+        with self.assertRaises(InputValidationError) as caught:
+            optimize_fourier_path(
+                potential, FALSE_VACUUM, TRUE_VACUUM,
+                settings=settings, initial_coefficients=np.zeros((2, 0)),
+            )
+        self.assertIn("n_initial_modes >= 1", str(caught.exception))
+
     def test_default_validation_is_unchanged(self):
         FourierPathSettings().validate()
         ModeSelectionSettings().validate()
+
+
+class NoProgressReportingTests(unittest.TestCase):
+    """A run that never leaves its start point must not be called converged.
+
+    Smallest reproduction of audit finding D3-1: the shipped curved-valley
+    potential at D=3, n_grid=6, a single mode and library-default starts. The
+    straight path is not stationary there (the projected gradient is O(100) while
+    ``gtol`` is 1e-7), so the returned zero coefficients are an optimizer failure,
+    not a solution.
+    """
+
+    SETTINGS = FourierPathSettings(
+        dimension=3,
+        n_grid=6,
+        mode_selection=ModeSelectionSettings(modes=(1, 2, 3, 4, 5), patience=3),
+    )
+
+    def test_stalled_run_is_reported_as_failure_not_convergence(self):
+        result = optimize_fourier_path(
+            valley_potential, VALLEY_FALSE, VALLEY_TRUE, settings=self.SETTINGS
+        )
+        # Precondition: this configuration really does return the straight line.
+        self.assertTrue(np.all(result.coefficients == 0.0))
+        self.assertGreater(result.gradient_norm, self.SETTINGS.optimizer.gtol)
+        # The three reported flags must all say so.
+        self.assertTrue(result.optimizer_made_no_progress)
+        self.assertFalse(result.optimizer_success)
+        self.assertFalse(result.adaptive_converged)
+        self.assertIn("no progress", result.stop_reason)
+        self.assertIn("random_starts", result.stop_reason)
+        self.assertIn("optimizer_made_no_progress", result.summary())
+
+    def test_flag_survives_a_serialization_round_trip(self):
+        from fourier_path_bounce import load_fourier_result, save_fourier_result
+
+        result = optimize_fourier_path(
+            valley_potential, VALLEY_FALSE, VALLEY_TRUE, settings=self.SETTINGS
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stalled.npz"
+            save_fourier_result(result, path)
+            restored = load_fourier_result(path)
+        self.assertTrue(restored.optimizer_made_no_progress)
+        self.assertFalse(restored.optimizer_success)
+        self.assertTrue(np.array_equal(restored.path_points, result.path_points))
+
+    def test_a_run_that_does_optimize_is_not_flagged(self):
+        """No false positive: random restarts escape the stall on the same case."""
+        settings = FourierPathSettings(
+            dimension=3,
+            n_grid=6,
+            mode_selection=ModeSelectionSettings(
+                modes=(1, 2, 3, 4, 5), patience=3, random_starts=3, random_scale=0.5
+            ),
+        )
+        result = optimize_fourier_path(
+            valley_potential, VALLEY_FALSE, VALLEY_TRUE, settings=settings
+        )
+        self.assertFalse(result.optimizer_made_no_progress)
+        self.assertTrue(result.optimizer_success)
+        self.assertGreater(result.coefficient_norm, 0.0)
+        self.assertLess(result.action_proxy, 54.0)
+
+    def test_healthy_d4_run_is_not_flagged(self):
+        result = optimize_fourier_path(
+            potential,
+            FALSE_VACUUM,
+            TRUE_VACUUM,
+            settings=FourierPathSettings(
+                dimension=4,
+                n_grid=40,
+                mode_selection=ModeSelectionSettings(modes=(1, 2), patience=2),
+            ),
+        )
+        self.assertFalse(result.optimizer_made_no_progress)
+        self.assertTrue(result.optimizer_success)
 
 
 class FindBounceTerminationReportingTests(unittest.TestCase):
@@ -120,6 +217,31 @@ class FindBounceTerminationReportingTests(unittest.TestCase):
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         self.assertIn("unknown", process.stdout)
         self.assertIn("False", process.stdout)
+
+    @unittest.skipUnless(shutil.which("wolframscript"), "wolframscript is unavailable")
+    def test_finite_action_without_diagnostics_is_not_reported_as_ok(self):
+        """A finite action whose termination cannot be classified is 'unverified'.
+
+        Exercised through the status logic directly: PathConvergence 'unknown'
+        must downgrade 'ok' just as a reached limit does.
+        """
+        code = (
+            f'Get["{WRAPPER.as_posix()}"];'
+            'r=FourierPathBounce`FindBounceTerminationReport[<|"Action"->1.0|>,'
+            '{"MaxPathIterations"->10},2];'
+            'Print["CONV=",r["PathConvergence"]];'
+            'Print["LIMIT=",r["PathIterationLimitReached"]];'
+            'status="ok";'
+            'If[status==="ok"&&TrueQ[r["PathIterationLimitReached"]],status="returned_at_path_iteration_limit"];'
+            'If[status==="ok"&&r["PathConvergence"]==="unknown",status="termination_unverified"];'
+            'Print["STATUS=",status];'
+        )
+        process = self._run(code, timeout=90)
+        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+        self.assertIn("CONV=unknown", process.stdout)
+        self.assertIn("LIMIT=False", process.stdout)
+        self.assertIn("STATUS=termination_unverified", process.stdout)
+        self.assertNotIn("STATUS=ok", process.stdout)
 
     @unittest.skipUnless(shutil.which("wolframscript"), "wolframscript is unavailable")
     def test_single_field_limit_concept_does_not_apply(self):

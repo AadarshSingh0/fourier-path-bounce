@@ -26,8 +26,11 @@ for the reusable Fourier preconditioning package.
   FindBounce path-iteration termination reporting through genuine
   `wolframscript` runs of the documented K=4 case at an insufficient and a
   sufficient iteration budget, the JSON result record written for a
-  limit-reached run, and user-supplied `initial_coefficients` as the sole
-  optimization start. The Wolfram-specific tests skip automatically when
+  limit-reached run, the downgrade of an unclassifiable finite action to
+  `termination_unverified`, user-supplied `initial_coefficients` as the sole
+  optimization start (including rejection of zero-column arrays), and the
+  smallest reproduction of the D=3 no-progress stall together with its
+  serialization round trip and its no-false-positive controls. The Wolfram-specific tests skip automatically when
   `wolframscript` is unavailable.
 - `test_xsm_model.py` validates the finite-temperature real-singlet model,
   including its analytic minima and derivatives, NumPy/JAX/Wolfram agreement,

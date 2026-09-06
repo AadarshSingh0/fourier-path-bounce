@@ -19,6 +19,8 @@ RunFindBounceWithFourier::gradient = "The supplied gradient does not evaluate to
 RunFindBounceWithFourier::options = "FindBounceOptions must be a list of rules and may not override FieldPoints, Gradient, or Dimension.";
 RunFindBounceWithFourier::package = "FindBounce could not be loaded in this Wolfram environment.";
 RunFindBounceWithFourier::failed = "FindBounce returned $Failed or did not expose a finite numeric Action.";
+RunFindBounceWithFourier::timeout = "FindBounce did not finish within the requested TimeLimit (`1` s); no action was produced.";
+RunFindBounceWithFourier::unverified = "FindBounce returned a finite action but did not expose a usable path-iteration count or configured limit, so its termination could not be classified.";
 RunFindBounceWithFourier::pathlimit = "FindBounce stopped at the configured MaxPathIterations limit (`1`). The returned action is finite but path deformation may have been truncated; rerun with a larger limit to distinguish truncation from convergence at the limit.";
 
 Begin["`Private`"];
@@ -225,6 +227,11 @@ RunFindBounceWithFourier[
   If[status === "ok" && TrueQ[termination["PathIterationLimitReached"]],
     status = "returned_at_path_iteration_limit"
   ];
+  (* Unavailable diagnostics must not read as success either: a finite action
+     whose termination cannot be classified is reported as unverified. *)
+  If[status === "ok" && termination["PathConvergence"] === "unknown",
+    status = "termination_unverified"
+  ];
   summary = Join[<|
     "Status" -> status,
     "Action" -> action,
@@ -243,10 +250,11 @@ RunFindBounceWithFourier[
   exportable = Replace[summary, m_Missing :> ToString[m, InputForm], {1}];
   If[StringQ[resultFile], Quiet@Check[Export[resultFile, exportable, "RawJSON"], Null]];
   Which[
-    status === "failed" || status === "timeout",
-      Message[RunFindBounceWithFourier::failed],
+    status === "timeout", Message[RunFindBounceWithFourier::timeout, timeLimit],
+    status === "failed", Message[RunFindBounceWithFourier::failed],
     status === "returned_at_path_iteration_limit",
-      Message[RunFindBounceWithFourier::pathlimit, termination["ConfiguredMaxPathIterations"]]
+      Message[RunFindBounceWithFourier::pathlimit, termination["ConfiguredMaxPathIterations"]],
+    status === "termination_unverified", Message[RunFindBounceWithFourier::unverified]
   ];
   (* The action, the imported initial path, and the BounceFunction (whose
      "Path" and "Radii" carry the deformed geometry) are always returned, so a
