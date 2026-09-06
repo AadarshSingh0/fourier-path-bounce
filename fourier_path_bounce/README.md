@@ -37,6 +37,9 @@ initializer and does not replace either solver.
 optimize_fourier_path(potential, false_vacuum, true_vacuum, *,
                       settings=None, potential_gradient=None,
                       initial_coefficients=None, metadata=None)
+# initial_coefficients is a start strategy in its own right: when it is
+# supplied, ModeSelectionSettings may disable zero_start, warm_previous,
+# warm_best and random_starts. Without it at least one of those is required.
 save_fourier_result(result, path)
 load_fourier_result(path)
 prepare_cosmotransitions_path(false_vacuum, true_vacuum, *,
@@ -85,7 +88,14 @@ The Wolfram package `wolfram/FourierPathBounce.wl` exports:
 ImportFourierPathPoints[source, falseVacuum, trueVacuum]
 RunFindBounceWithFourier[potential, fields, falseVacuum, trueVacuum,
                          dimension, source, options]
+FindBounceTerminationReport[bounce, findBounceOptions, fieldCount]
 ```
+
+FindBounce results carry explicit termination diagnostics: a finite action is
+not treated as convergence, a run that stops at `"MaxPathIterations"` is
+reported as `returned_at_path_iteration_limit`, and a run that stops below the
+cap is reported as having satisfied the solver's own tolerance rather than as
+proven converged. See [`wolfram/README.md`](wolfram/README.md).
 
 Python exports geometry and metadata; users define their potential and
 gradient in Wolfram. This avoids unreliable source translation.

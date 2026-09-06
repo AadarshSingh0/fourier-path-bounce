@@ -15,8 +15,10 @@ trueVacuum = {1.0466805318046022, 0.033439047480567696};
 result = FourierPathBounce`RunFindBounceWithFourier[
   potential, fields, falseVacuum, trueVacuum, 4, metadataFile,
   "Gradient" -> gradient,
+  (* 20 is sufficient for the K=4 case of this example; 10 is not. See
+     examples/reusable_findbounce_example.wls. *)
   "FindBounceOptions" -> {
-    "MaxPathIterations" -> 10,
+    "MaxPathIterations" -> 20,
     "MaxRadiusIterations" -> 200,
     "PathTolerance" -> 0.01
   },
@@ -25,4 +27,15 @@ result = FourierPathBounce`RunFindBounceWithFourier[
 ];
 If[result === $Failed, Exit[3]];
 Print[ExportString[KeyDrop[result, {"Bounce", "InitialPath"}], "RawJSON"]];
-If[result["Status"] === "ok", Exit[0], Exit[4]];
+(* Exit codes distinguish the three outcomes rather than collapsing a
+   truncated run into a generic failure:
+     0 solver tolerance satisfied below the configured limit
+     4 no finite action (solver failure or timeout)
+     5 finite action returned exactly at the path-iteration limit *)
+Which[
+  result["Status"] === "ok", Exit[0],
+  result["Status"] === "returned_at_path_iteration_limit",
+    Print["Path deformation stopped at the configured limit; the action is not established as converged."];
+    Exit[5],
+  True, Exit[4]
+];

@@ -22,6 +22,13 @@ for the reusable Fourier preconditioning package.
 - `test_additional_validation.py` covers arbitrary field dimension,
   malformed gradients, incompatible solver dimensions, and clear rejection of
   non-JAX potential functions.
+- `test_comment6_corrections.py` covers the Comment 6 audit corrections:
+  FindBounce path-iteration termination reporting through genuine
+  `wolframscript` runs of the documented K=4 case at an insufficient and a
+  sufficient iteration budget, the JSON result record written for a
+  limit-reached run, and user-supplied `initial_coefficients` as the sole
+  optimization start. The Wolfram-specific tests skip automatically when
+  `wolframscript` is unavailable.
 - `test_xsm_model.py` validates the finite-temperature real-singlet model,
   including its analytic minima and derivatives, NumPy/JAX/Wolfram agreement,
   and the portable example command interface.

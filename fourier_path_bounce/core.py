@@ -72,7 +72,14 @@ class ModeSelectionSettings:
     random_scale: float = 0.03
     seed: int = 20260508
 
-    def validate(self) -> None:
+    def validate(self, *, external_start_available: bool = False) -> None:
+        """Validate the mode-selection settings.
+
+        ``external_start_available`` records that the caller will supply an
+        additional start point (``optimize_fourier_path(initial_coefficients=...)``).
+        User-supplied coefficients are a complete start strategy on their own, so
+        when one is present the built-in start flags may all be disabled.
+        """
         if not self.modes or any(int(m) != m or m < 1 for m in self.modes):
             raise InputValidationError("modes must be a nonempty sequence of positive integers")
         if tuple(sorted(set(self.modes))) != self.modes:
@@ -81,8 +88,18 @@ class ModeSelectionSettings:
             raise InputValidationError("relative_tolerance must be nonnegative and patience positive")
         if self.random_starts < 0 or self.random_scale < 0.0:
             raise InputValidationError("random_starts and random_scale must be nonnegative")
-        if not (self.zero_start or self.random_starts or self.warm_previous or self.warm_best):
-            raise InputValidationError("at least one optimizer start strategy is required")
+        if not (
+            self.zero_start
+            or self.random_starts
+            or self.warm_previous
+            or self.warm_best
+            or external_start_available
+        ):
+            raise InputValidationError(
+                "at least one optimizer start strategy is required: enable zero_start, "
+                "warm_previous, warm_best, or random_starts, or pass explicit "
+                "initial_coefficients to optimize_fourier_path"
+            )
 
 
 @dataclass(frozen=True)
@@ -93,7 +110,7 @@ class FourierPathSettings:
     optimizer: OptimizerSettings = field(default_factory=OptimizerSettings)
     mode_selection: ModeSelectionSettings = field(default_factory=ModeSelectionSettings)
 
-    def validate(self) -> None:
+    def validate(self, *, external_start_available: bool = False) -> None:
         if self.dimension not in (3, 4):
             raise InputValidationError("dimension must be 3 or 4 for the validated action formulas")
         if self.n_grid < 3:
@@ -104,7 +121,7 @@ class FourierPathSettings:
                 "cubic_smoothstep_raw_t profile"
             )
         self.optimizer.validate()
-        self.mode_selection.validate()
+        self.mode_selection.validate(external_start_available=external_start_available)
 
 
 @dataclass(frozen=True)
@@ -458,7 +475,10 @@ def optimize_fourier_path(
     validated for downstream solver use but is not used by the Fourier action.
     """
     cfg = settings or FourierPathSettings()
-    cfg.validate()
+    # Explicit initial coefficients count as a start strategy in their own right,
+    # so the built-in start flags may all be disabled when one is supplied. The
+    # shape and finiteness of the array are checked below, once n_fields is known.
+    cfg.validate(external_start_available=initial_coefficients is not None)
     false, true = _validate_endpoints(false_vacuum, true_vacuum)
     _validate_gradient(potential_gradient, (false, true))
     potential_false = _potential_scalar(potential, false, "false vacuum")
