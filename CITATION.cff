@@ -9,7 +9,7 @@ authors:
   - family-names: "Singh"
     given-names: "Aadarsh"
     affiliation: "Centre for High Energy Physics, Indian Institute of Science, Bengaluru 560012, India"
-version: 0.1.0
+version: 0.1.1
 license: MIT
 repository-code: "https://github.com/AadarshSingh0/fourier-path-bounce"
 keywords:

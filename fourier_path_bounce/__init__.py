@@ -26,7 +26,7 @@ from .findbounce import (
 )
 from .serialization import load_fourier_result, save_fourier_result
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "CosmoTransitionsResult",

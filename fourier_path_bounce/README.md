@@ -37,6 +37,9 @@ initializer and does not replace either solver.
 optimize_fourier_path(potential, false_vacuum, true_vacuum, *,
                       settings=None, potential_gradient=None,
                       initial_coefficients=None, metadata=None)
+# initial_coefficients is a start strategy in its own right: when it is
+# supplied, ModeSelectionSettings may disable zero_start, warm_previous,
+# warm_best and random_starts. Without it at least one of those is required.
 save_fourier_result(result, path)
 load_fourier_result(path)
 prepare_cosmotransitions_path(false_vacuum, true_vacuum, *,
@@ -68,6 +71,35 @@ FindBouncePointSet
 number of FindBounce interior points. FindBounce exports are open polygonal
 paths, not closed polygons.
 
+### Optimizer starts and the D=3 zero start
+
+The bounded L-BFGS-B optimizer can terminate on its own `ftol` test at its start
+point, reporting `CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH` after a
+single iteration without having moved. On the `d=3` objective this happens
+routinely when the only start is the straight line (`zero_start` with
+`random_starts=0`, the library default): the returned coefficients are all zero,
+so the "preconditioned" path *is* the straight line, even though the straight
+path is not stationary there.
+
+This is a real limitation of the bounded optimizer on this objective, not a
+property of the potential, and it is now reported rather than hidden. When no
+start at any mode count leaves its initial point while the projected gradient
+stays above `gtol`, the result carries
+
+```text
+optimizer_made_no_progress = True
+optimizer_success          = False
+adaptive_converged         = False
+stop_reason                = "optimizer made no progress from any start ..."
+```
+
+**What to configure.** For `d=3`, set `ModeSelectionSettings.random_starts >= 1`
+(the shipped examples use `random_starts=3`), or supply explicit
+`initial_coefficients`. Outcomes remain seed-dependent, so treat `seed` as a
+setting to vary, and always check `optimizer_made_no_progress`,
+`gradient_norm`, and `adaptive_converged` before using a path. `d=4` is not
+usually affected at the default settings.
+
 `optimize_fourier_path` supports the repository's validated `d=3` and `d=4`
 discrete actions. The `d=3` objective retains the published `1e-300` guards
 and `1e50` invalid-interval penalty. The `d=4` objective retains the published
@@ -85,7 +117,14 @@ The Wolfram package `wolfram/FourierPathBounce.wl` exports:
 ImportFourierPathPoints[source, falseVacuum, trueVacuum]
 RunFindBounceWithFourier[potential, fields, falseVacuum, trueVacuum,
                          dimension, source, options]
+FindBounceTerminationReport[bounce, findBounceOptions, fieldCount]
 ```
+
+FindBounce results carry explicit termination diagnostics: a finite action is
+not treated as convergence, a run that stops at `"MaxPathIterations"` is
+reported as `returned_at_path_iteration_limit`, and a run that stops below the
+cap is reported as having satisfied the solver's own tolerance rather than as
+proven converged. See [`wolfram/README.md`](wolfram/README.md).
 
 Python exports geometry and metadata; users define their potential and
 gradient in Wolfram. This avoids unreliable source translation.

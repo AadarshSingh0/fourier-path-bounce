@@ -72,7 +72,14 @@ class ModeSelectionSettings:
     random_scale: float = 0.03
     seed: int = 20260508
 
-    def validate(self) -> None:
+    def validate(self, *, external_start_available: bool = False) -> None:
+        """Validate the mode-selection settings.
+
+        ``external_start_available`` records that the caller will supply an
+        additional start point (``optimize_fourier_path(initial_coefficients=...)``).
+        User-supplied coefficients are a complete start strategy on their own, so
+        when one is present the built-in start flags may all be disabled.
+        """
         if not self.modes or any(int(m) != m or m < 1 for m in self.modes):
             raise InputValidationError("modes must be a nonempty sequence of positive integers")
         if tuple(sorted(set(self.modes))) != self.modes:
@@ -81,8 +88,18 @@ class ModeSelectionSettings:
             raise InputValidationError("relative_tolerance must be nonnegative and patience positive")
         if self.random_starts < 0 or self.random_scale < 0.0:
             raise InputValidationError("random_starts and random_scale must be nonnegative")
-        if not (self.zero_start or self.random_starts or self.warm_previous or self.warm_best):
-            raise InputValidationError("at least one optimizer start strategy is required")
+        if not (
+            self.zero_start
+            or self.random_starts
+            or self.warm_previous
+            or self.warm_best
+            or external_start_available
+        ):
+            raise InputValidationError(
+                "at least one optimizer start strategy is required: enable zero_start, "
+                "warm_previous, warm_best, or random_starts, or pass explicit "
+                "initial_coefficients to optimize_fourier_path"
+            )
 
 
 @dataclass(frozen=True)
@@ -93,7 +110,7 @@ class FourierPathSettings:
     optimizer: OptimizerSettings = field(default_factory=OptimizerSettings)
     mode_selection: ModeSelectionSettings = field(default_factory=ModeSelectionSettings)
 
-    def validate(self) -> None:
+    def validate(self, *, external_start_available: bool = False) -> None:
         if self.dimension not in (3, 4):
             raise InputValidationError("dimension must be 3 or 4 for the validated action formulas")
         if self.n_grid < 3:
@@ -104,7 +121,7 @@ class FourierPathSettings:
                 "cubic_smoothstep_raw_t profile"
             )
         self.optimizer.validate()
-        self.mode_selection.validate()
+        self.mode_selection.validate(external_start_available=external_start_available)
 
 
 @dataclass(frozen=True)
@@ -160,6 +177,7 @@ class FourierPathResult:
     coefficient_bound_saturation_count: int
     invalid_interval_count: int
     min_v_minus_vt: float
+    optimizer_made_no_progress: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -244,6 +262,7 @@ class FourierPathResult:
             "coefficient_norm": self.coefficient_norm,
             "invalid_interval_count": self.invalid_interval_count,
             "min_v_minus_vt": self.min_v_minus_vt,
+            "optimizer_made_no_progress": self.optimizer_made_no_progress,
             "path_sha256": self.path_sha256,
             "settings": asdict(self.settings),
             "metadata": self.metadata,
@@ -458,7 +477,10 @@ def optimize_fourier_path(
     validated for downstream solver use but is not used by the Fourier action.
     """
     cfg = settings or FourierPathSettings()
-    cfg.validate()
+    # Explicit initial coefficients count as a start strategy in their own right,
+    # so the built-in start flags may all be disabled when one is supplied. The
+    # shape and finiteness of the array are checked below, once n_fields is known.
+    cfg.validate(external_start_available=initial_coefficients is not None)
     false, true = _validate_endpoints(false_vacuum, true_vacuum)
     _validate_gradient(potential_gradient, (false, true))
     potential_false = _potential_scalar(potential, false, "false vacuum")
@@ -479,9 +501,14 @@ def optimize_fourier_path(
     user_start: Array | None = None
     if initial_coefficients is not None:
         user_start = np.asarray(initial_coefficients, dtype=float)
-        if user_start.ndim != 2 or user_start.shape[0] != false.size:
+        if (
+            user_start.ndim != 2
+            or user_start.shape[0] != false.size
+            or user_start.shape[1] < 1
+        ):
             raise InputValidationError(
-                "initial_coefficients must have shape (n_fields, n_initial_modes)"
+                "initial_coefficients must have shape (n_fields, n_initial_modes) "
+                "with n_initial_modes >= 1"
             )
         if not np.all(np.isfinite(user_start)):
             raise InputValidationError("initial_coefficients must be finite")
@@ -494,6 +521,7 @@ def optimize_fourier_path(
     previous_modes: int | None = None
     previous_mode_action: float | None = None
     no_improve = 0
+    stalled_modes: list[bool] = []
     adaptive_converged = False
     stop_reason = "max_modes_reached"
     history: list[ModeResult] = []
@@ -565,9 +593,22 @@ def optimize_fourier_path(
             )
             solve_time = time.perf_counter() - solve_started
             total_solve += solve_time
-            _, final_gradient = objective(np.asarray(result.x, dtype=float))
+            final_x = np.asarray(result.x, dtype=float)
+            _, final_gradient = objective(final_x)
+            # L-BFGS-B can report CONVERGENCE while returning its own start point
+            # with a large projected gradient. Such a run minimized nothing, so
+            # record the fact rather than inheriting SciPy's success flag.
+            at_lower = final_x <= -bound
+            at_upper = final_x >= bound
+            projected_gradient = np.where(
+                (at_lower & (final_gradient > 0.0)) | (at_upper & (final_gradient < 0.0)),
+                0.0,
+                final_gradient,
+            )
             run_results.append(
                 {
+                    "made_progress": not np.array_equal(final_x, np.asarray(x0, dtype=float)),
+                    "projected_gradient_norm": float(np.linalg.norm(projected_gradient)),
                     "label": label,
                     "action": float(result.fun),
                     "coefficients": np.asarray(result.x, dtype=float),
@@ -585,6 +626,13 @@ def optimize_fourier_path(
             raise FourierPathError(f"all optimization starts returned non-finite actions at N_m={n_modes}")
         mode_best = min(finite_runs, key=lambda run: run["action"])
         mode_action = float(mode_best["action"])
+        stalled_modes.append(
+            all(
+                (not run["made_progress"])
+                and run["projected_gradient_norm"] > optimizer.gtol
+                for run in finite_runs
+            )
+        )
         relative_change = (
             None
             if previous_mode_action is None or mode_action == 0.0
@@ -637,6 +685,20 @@ def optimize_fourier_path(
 
     if best_coefficients is None or best_modes is None or best_run is None:
         raise FourierPathError("optimization produced no finite result")
+    made_no_progress = bool(stalled_modes) and all(stalled_modes)
+    if made_no_progress:
+        # No start at any mode count ever left its initial point while the
+        # projected gradient stayed above gtol: the returned coefficients are the
+        # unoptimized start, so the adaptive scan's "no improvement" is an
+        # artefact of the stall, not convergence. Do not report either as success.
+        adaptive_converged = False
+        stop_reason = (
+            "optimizer made no progress from any start at any mode count; the returned "
+            "path is the unoptimized initial path. Enable ModeSelectionSettings."
+            "random_starts (>= 1), supply initial_coefficients, or change the seed."
+        )
+        best_run = dict(best_run)
+        best_run["success"] = False
     coefficients = best_coefficients.reshape(false.size, best_modes)
     parameter = np.linspace(0.0, 1.0, cfg.n_grid)
     path = reconstruct_path(false, true, coefficients, parameter)
@@ -671,6 +733,7 @@ def optimize_fourier_path(
         coefficient_bound_saturation_count=saturated,
         invalid_interval_count=invalid_count,
         min_v_minus_vt=min_v_minus_vt,
+        optimizer_made_no_progress=made_no_progress,
         metadata={
             "energy_convention": "false_vacuum_shifted_to_zero",
             "profile": cfg.profile,

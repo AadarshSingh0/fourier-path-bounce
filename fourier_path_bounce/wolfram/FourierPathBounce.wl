@@ -5,6 +5,8 @@ ImportFourierPathPoints::usage =
   "ImportFourierPathPoints[source, falseVacuum, trueVacuum] validates and returns an open false-to-true path. source may be a metadata JSON file, a full-path CSV file, or an explicit numeric point matrix.";
 RunFindBounceWithFourier::usage =
   "RunFindBounceWithFourier[potential, fields, falseVacuum, trueVacuum, dimension, source, opts] invokes the standard FindBounce solver with the Fourier path supplied as FieldPoints.";
+FindBounceTerminationReport::usage =
+  "FindBounceTerminationReport[bounce, findBounceOptions, fieldCount] reports how a FindBounce calculation terminated: the observed path-iteration count, the effective configured limit, whether that limit was reached, the tolerances that define the solver's own stopping rule, and what those facts do and do not establish about convergence.";
 
 ImportFourierPathPoints::source = "Cannot read Fourier path source `1`.";
 ImportFourierPathPoints::matrix = "The Fourier path must be a finite numeric matrix.";
@@ -17,10 +19,83 @@ RunFindBounceWithFourier::gradient = "The supplied gradient does not evaluate to
 RunFindBounceWithFourier::options = "FindBounceOptions must be a list of rules and may not override FieldPoints, Gradient, or Dimension.";
 RunFindBounceWithFourier::package = "FindBounce could not be loaded in this Wolfram environment.";
 RunFindBounceWithFourier::failed = "FindBounce returned $Failed or did not expose a finite numeric Action.";
+RunFindBounceWithFourier::timeout = "FindBounce did not finish within the requested TimeLimit (`1` s); no action was produced.";
+RunFindBounceWithFourier::unverified = "FindBounce returned a finite action but did not expose a usable path-iteration count or configured limit, so its termination could not be classified.";
+RunFindBounceWithFourier::pathlimit = "FindBounce stopped at the configured MaxPathIterations limit (`1`). The returned action is finite but path deformation may have been truncated; rerun with a larger limit to distinguish truncation from convergence at the limit.";
 
 Begin["`Private`"];
 
 finiteNumericQ[value_] := NumericQ[N[value]] && FreeQ[N[value], _DirectedInfinity | Indeterminate | ComplexInfinity];
+
+(* --- FindBounce termination semantics --------------------------------------
+   FindBounce 1.1.0 runs
+
+       While[iter <= maxItePath || switchPath,
+         ... ; If[switchPath || iter == maxItePath || bottomless, Break[]]; ... ; iter++]
+       results["PathIterations"] = iter
+
+   `switchPath` is set to True when the relative path displacement falls below
+   "PathTolerance" (MultiFieldBounce) or the relative action change falls below
+   "ActionTolerance" (ParameterInFieldSpace). The loop therefore exits either
+   because one of those solver tolerances was met or because the iteration cap
+   was hit, and FindBounce does not expose which. Consequently:
+
+     PathIterations <  cap  ->  a solver tolerance was met (not a proof that the
+                                action is numerically converged, only that
+                                FindBounce's own stopping rule fired);
+     PathIterations == cap  ->  ambiguous; truncation cannot be excluded.
+
+   For a single field FindBounce forces maxItePath = 0 and performs no path
+   deformation at all, so the limit concept does not apply. --------------------*)
+
+normalizedOptionKeys[rules_List] := Association @@ (
+  Function[rule, ToString[First[rule]] -> Last[rule]] /@ rules);
+
+findBounceDefaultOption[name_String] := Quiet@Check[
+  Lookup[normalizedOptionKeys[Options[FindBounce`FindBounce]], name, Missing["Unavailable"]],
+  Missing["Unavailable"]];
+
+effectiveFindBounceOption[userOptions_List, name_String] := Module[{supplied},
+  supplied = Lookup[normalizedOptionKeys[userOptions], name, Missing["NotSet"]];
+  If[MissingQ[supplied], findBounceDefaultOption[name], supplied]
+];
+
+FindBounceTerminationReport[bounce_, userOptions_List, fieldCount_Integer] := Module[
+  {pathIterations, cap, pathTolerance, actionTolerance, singleField, limitReached,
+   convergence, evidence},
+  pathIterations = If[bounce === $Failed || bounce === Null,
+    Missing["Unavailable"],
+    Quiet@Check[bounce["PathIterations"], Missing["Unavailable"]]];
+  cap = effectiveFindBounceOption[userOptions, "MaxPathIterations"];
+  pathTolerance = effectiveFindBounceOption[userOptions, "PathTolerance"];
+  actionTolerance = effectiveFindBounceOption[userOptions, "ActionTolerance"];
+  singleField = fieldCount === 1;
+  limitReached = TrueQ[
+    Not[singleField] && IntegerQ[pathIterations] && IntegerQ[cap] && pathIterations >= cap];
+  convergence = Which[
+    singleField, "not_applicable_single_field",
+    Not[IntegerQ[pathIterations]] || Not[IntegerQ[cap]], "unknown",
+    limitReached, "not_established_limit_reached",
+    True, "solver_tolerance_satisfied"];
+  evidence = Switch[convergence,
+    "not_applicable_single_field",
+      "FindBounce performs no path deformation for a single field; MaxPathIterations does not apply.",
+    "unknown",
+      "The path-iteration count or the configured limit is unavailable, so termination cannot be classified.",
+    "not_established_limit_reached",
+      "Path deformation stopped at the configured MaxPathIterations limit. FindBounce does not report whether its PathTolerance/ActionTolerance criterion was also met, so truncation cannot be excluded. Rerun with a larger limit and compare actions.",
+    "solver_tolerance_satisfied",
+      "Path deformation stopped before the configured limit, so FindBounce's own PathTolerance/ActionTolerance criterion fired. That is the solver's stopping rule, not a proof that the action is numerically converged; confirm by varying the tolerances, the limit, and the number of field points."];
+  <|
+    "PathIterations" -> pathIterations,
+    "ConfiguredMaxPathIterations" -> cap,
+    "PathIterationLimitReached" -> limitReached,
+    "PathTolerance" -> pathTolerance,
+    "ActionTolerance" -> actionTolerance,
+    "PathConvergence" -> convergence,
+    "ConvergenceEvidence" -> evidence
+  |>
+];
 finiteVectorQ[value_] := VectorQ[value, finiteNumericQ];
 finiteMatrixQ[value_] := MatrixQ[value, finiteNumericQ];
 
@@ -85,7 +160,7 @@ RunFindBounceWithFourier[
 ] := Module[
   {path, gradient, userOptions, forbidden, timeLimit, resultFile, variables,
    potentialValues, gradientValues, callOptions, timed, runtime, bounce,
-   action, status, message = "", summary, result},
+   action, status, message = "", summary, result, termination, exportable},
 
   If[
     dimension < 2 || Length[fields] < 1 || Length[fields] =!= Length[falseVacuum] ||
@@ -146,7 +221,18 @@ RunFindBounceWithFourier[
     action = If[bounce === $Failed, Missing["Failed"], Quiet@Check[N[bounce["Action"]], Missing["ActionFailed"]]];
     status = If[finiteNumericQ[action], "ok", "failed"]
   ];
-  summary = <|
+  (* A finite action is not by itself evidence of convergence: classify how
+     FindBounce actually stopped before assigning a successful status. *)
+  termination = FindBounceTerminationReport[bounce, userOptions, Length[fields]];
+  If[status === "ok" && TrueQ[termination["PathIterationLimitReached"]],
+    status = "returned_at_path_iteration_limit"
+  ];
+  (* Unavailable diagnostics must not read as success either: a finite action
+     whose termination cannot be classified is reported as unverified. *)
+  If[status === "ok" && termination["PathConvergence"] === "unknown",
+    status = "termination_unverified"
+  ];
+  summary = Join[<|
     "Status" -> status,
     "Action" -> action,
     "RuntimeSeconds" -> runtime,
@@ -157,9 +243,22 @@ RunFindBounceWithFourier[
     "FieldPointCount" -> Length[path],
     "Orientation" -> "false_to_true",
     "Polygon" -> "open"
-  |>;
-  If[StringQ[resultFile], Quiet@Check[Export[resultFile, summary, "RawJSON"], Null]];
-  If[status =!= "ok", Message[RunFindBounceWithFourier::failed]];
+  |>, termination];
+  (* Missing[...] cannot be encoded as JSON. Without this substitution Export
+     truncates the file and the enclosing Check hides the error, so precisely
+     the failed, timed-out, and limit-reached runs left a zero-byte record. *)
+  exportable = Replace[summary, m_Missing :> ToString[m, InputForm], {1}];
+  If[StringQ[resultFile], Quiet@Check[Export[resultFile, exportable, "RawJSON"], Null]];
+  Which[
+    status === "timeout", Message[RunFindBounceWithFourier::timeout, timeLimit],
+    status === "failed", Message[RunFindBounceWithFourier::failed],
+    status === "returned_at_path_iteration_limit",
+      Message[RunFindBounceWithFourier::pathlimit, termination["ConfiguredMaxPathIterations"]],
+    status === "termination_unverified", Message[RunFindBounceWithFourier::unverified]
+  ];
+  (* The action, the imported initial path, and the BounceFunction (whose
+     "Path" and "Radii" carry the deformed geometry) are always returned, so a
+     limit-reached or failed run remains fully diagnosable. *)
   result = Join[summary, <|"InitialPath" -> path, "Bounce" -> bounce|>];
   result
 ];

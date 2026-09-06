@@ -22,8 +22,12 @@ bounce solvers. Run the examples as modules from the repository root.
 - `reusable_findbounce_example.py` exports arc-length-sampled open paths
   with `K=1` and `K=4` interior points for FindBounce.
 - `reusable_findbounce_example.wls` defines the same potential in Wolfram,
-  imports the `K=4` Python export, runs FindBounce, and prints a compact
-  solver summary.
+  imports the `K=4` Python export, and runs FindBounce twice: once with
+  `MaxPathIterations -> 10`, which is not a sufficient budget for this case and
+  is reported as `returned_at_path_iteration_limit`, and once with
+  `MaxPathIterations -> 20`, which stops on the solver's own tolerance after 11
+  iterations. The two actions differ by about 1%, which is why the example
+  prints the full termination diagnostics rather than the action alone.
 - `xsm/` contains the finite-temperature Z2-symmetric real-singlet Standard
   Model benchmark used in BubbleProfiler and FindBounce. Its documented driver
   validates the model and runs the reusable Fourier, CosmoTransitions, and
@@ -45,6 +49,18 @@ bounce solvers. Run the examples as modules from the repository root.
 
 The integration drivers are retained for repeatable validation. New users
 normally start with the public examples.
+
+## Reading FindBounce results
+
+Never quote a FindBounce action without checking how the run terminated. Every
+result from `RunFindBounceWithFourier` reports `Status`, `PathIterations`,
+`ConfiguredMaxPathIterations`, `PathIterationLimitReached`, `PathConvergence`
+and `ConvergenceEvidence`. A run that stops at the configured limit may have
+been truncated; a run that stops below it has only satisfied FindBounce's own
+`PathTolerance`/`ActionTolerance` rule, which is not a proof of numerical
+convergence. Actions obtained with different `K` are not expected to agree, and
+these examples make no K-independence or universal-convergence claim. See
+[`fourier_path_bounce/wolfram/README.md`](../fourier_path_bounce/wolfram/README.md).
 
 ## Prerequisites
 

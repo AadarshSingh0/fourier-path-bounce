@@ -11,6 +11,10 @@ If[! StringQ[wrapperFile] || ! FileExistsQ[wrapperFile],
 If[! Quiet@Check[Needs["FindBounce`"] ; True, False],
   Print["FindBounce is unavailable in this Wolfram installation."]; Exit[3]
 ];
+(* Loaded before the straight-initialized run so both runs are classified by
+   the same termination logic. *)
+Get[wrapperFile];
+Needs["FourierPathBounce`"];
 
 parameterFile = FileNameJoin[{outputDirectory, "xsm_wolfram_parameters.json"}];
 metadataFile = FileNameJoin[{outputDirectory, "findbounce_input", "xsm_initializer_metadata.json"}];
@@ -56,7 +60,6 @@ If[straight === $Failed || ! NumericQ[straight["Action"]],
   Print["The straight-initialized FindBounce calculation failed."]; Exit[4]
 ];
 
-Get[wrapperFile];
 fourierTiming = AbsoluteTiming[
   fourierResult = FourierPathBounce`RunFindBounceWithFourier[
     potential, {h, s}, falseVacuum, trueVacuum, 3, metadataFile,
@@ -71,10 +74,13 @@ fourierTiming = AbsoluteTiming[
     "TimeLimit" -> 300
   ];
 ];
-If[! AssociationQ[fourierResult] || fourierResult["Status"] =!= "ok",
+If[! AssociationQ[fourierResult] ||
+   ! MemberQ[{"ok", "returned_at_path_iteration_limit"}, fourierResult["Status"]],
   Print["The Fourier-initialized FindBounce calculation failed."]; Exit[4]
 ];
 fourier = fourierResult["Bounce"];
+(* Classify the straight-initialized run with the same rules. *)
+straightTermination = FourierPathBounce`FindBounceTerminationReport[straight, commonOptions, 2];
 
 Export[
   FileNameJoin[{outputDirectory, "findbounce_straight_path.csv"}],
@@ -89,23 +95,29 @@ result = <|
   "solver" -> "FindBounce",
   "version" -> "1.1.0",
   "temperature_GeV" -> temperature,
-  "straight" -> <|
+  "straight" -> Join[<|
     "action_S3" -> N[straight["Action"]],
     "S3_over_T" -> N[straight["Action"]]/temperature,
     "path_iterations" -> straight["PathIterations"],
     "solver_time_s" -> straightTiming[[1]],
     "field_points" -> 31
-  |>,
-  "fourier" -> <|
+  |>, straightTermination],
+  "fourier" -> Join[<|
+    "status" -> fourierResult["Status"],
     "action_S3" -> N[fourier["Action"]],
     "S3_over_T" -> N[fourier["Action"]]/temperature,
     "path_iterations" -> fourier["PathIterations"],
     "solver_time_s" -> fourierTiming[[1]],
     "field_points" -> 31,
     "interior_points_K" -> 29
-  |>,
+  |>, KeyTake[fourierResult,
+      {"ConfiguredMaxPathIterations", "PathIterationLimitReached", "PathTolerance",
+       "ActionTolerance", "PathConvergence", "ConvergenceEvidence"}]],
   "relative_action_difference" ->
     N[(fourier["Action"] - straight["Action"])/straight["Action"]]
 |>;
-Export[resultFile, result, "RawJSON"];
-Print[ExportString[result, "RawJSON"]];
+(* Missing[...] is not JSON-encodable; keep a readable record either way, and
+   print exactly what was written. *)
+exportableResult = Replace[result, m_Missing :> ToString[m, InputForm], {3}];
+Export[resultFile, exportableResult, "RawJSON"];
+Print[ExportString[exportableResult, "RawJSON"]];
